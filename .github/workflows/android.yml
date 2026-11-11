@@ -16,14 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract Android project
+      - name: Verify Android project at repository root
         run: |
-          unzip -q assistant-revival-source.zip
-          test -f assistant-revival/app/build.gradle
-          test -f assistant-revival/app/src/main/cpp/native-lib.cpp
+          test -f settings.gradle
+          test -f app/build.gradle
+          test -f app/src/main/cpp/native-lib.cpp
 
       - name: Download Gemma 3 1B GGUF
-        working-directory: assistant-revival
         run: |
           mkdir -p models
           curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
@@ -51,7 +50,6 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - name: Build APK with bundled model
-        working-directory: assistant-revival
         run: |
           gradle --no-daemon --stacktrace :app:assembleDebug
           APK=app/build/outputs/apk/debug/app-debug.apk
@@ -63,6 +61,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: assistant-revival-debug-arm64-with-gemma3-1b
-          path: assistant-revival/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
