@@ -1,0 +1,68 @@
+name: Build Assistant Revival APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: |
+          unzip -q assistant-revival-source.zip
+          test -f assistant-revival/app/build.gradle
+          test -f assistant-revival/app/src/main/cpp/native-lib.cpp
+
+      - name: Download Gemma 3 1B GGUF
+        working-directory: assistant-revival
+        run: |
+          mkdir -p models
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
+            --output models/gemma-3-1b-it-Q4_K_M.gguf \
+            "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf"
+          echo "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135  models/gemma-3-1b-it-Q4_K_M.gguf" | sha256sum --check --status
+          test "$(stat -c%s models/gemma-3-1b-it-Q4_K_M.gguf)" -gt 700000000
+          echo "Gemma download and SHA-256 verification passed."
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Build APK with bundled model
+        working-directory: assistant-revival
+        run: |
+          gradle --no-daemon --stacktrace :app:assembleDebug
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -l "$APK" | grep -F "assets/models/gemma-3-1b-it-Q4_K_M.gguf"
+          echo "APK size: $(du -h "$APK" | cut -f1)"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: assistant-revival-debug-arm64-with-gemma3-1b
+          path: assistant-revival/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
