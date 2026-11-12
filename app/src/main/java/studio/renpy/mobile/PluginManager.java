@@ -308,7 +308,7 @@ public final class PluginManager {
         }
     }
 
-    private synchronized void registerAction(String pluginId, String actionId, String label, String code) {
+    private void registerAction(String pluginId, String actionId, String label, String code) {
         if (actionId == null || !actionId.matches("[A-Za-z0-9_.-]{1,64}")) return;
         if (label == null || label.trim().isEmpty() || code == null || code.trim().isEmpty()) return;
         for (Action action : actions) {
