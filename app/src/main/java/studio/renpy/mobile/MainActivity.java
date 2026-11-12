@@ -496,7 +496,8 @@ public class MainActivity extends Activity {
      case"pause":v.add(e.optString("value"));break;
      case"hide":v.add(e.optString("name"));break;
      case"label":case"jump":case"call":v.add(e.optString("target"));break;
-     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;\n     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;
+     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;
+     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;
     }
     input.append(t);
     for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));
