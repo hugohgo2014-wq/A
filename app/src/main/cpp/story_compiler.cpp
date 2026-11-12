@@ -14,6 +14,7 @@ static std::string b64(const std::string& in) {
 static std::vector<std::string> split(const std::string&s,char d){std::vector<std::string>v;std::stringstream ss(s);std::string x;while(std::getline(ss,x,d))v.push_back(x);return v;}
 static std::string clean(const std::string&s){std::string r;for(unsigned char c:s)if(std::isalnum(c)||c=='_')r.push_back((char)std::tolower(c));if(r.empty())r="asset";if(std::isdigit((unsigned char)r[0]))r="a_"+r;return r;}
 static std::string quote(const std::string&s){std::string r;for(char c:s){if(c=='\\'||c=='"')r.push_back('\\');if(c=='\n')r+="\\n";else if(c!='\r')r.push_back(c);}return r;}
+static std::string literal(const std::string&s){if(s.empty())return "True";if(s=="True"||s=="False"||s=="None"||s.front()=='"'||std::isdigit((unsigned char)s.front())||s.front()=='-')return s;return "\\""+quote(s)+"\\"";}
 struct Event { std::string type; std::vector<std::string> a; };
 extern "C" JNIEXPORT jstring JNICALL Java_studio_renpy_mobile_NativeBridge_compileStory(JNIEnv*env,jclass,jstring input){
  const char*raw=env->GetStringUTFChars(input,nullptr);std::string data(raw?raw:"");if(raw)env->ReleaseStringUTFChars(input,raw);
@@ -37,7 +38,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_studio_renpy_mobile_NativeBridge_compi
  }
  out+="\nlabel start:\n";int indent=1;bool ended=false;
  for(const auto&e:events){const auto&type=e.type;auto pad=[&](){return std::string((size_t)std::max(0,indent)*4,' ');};
-  if(type=="if"){out+=pad()+"if "+clean(get(e,0))+" == "+(get(e,1).empty()?"True":get(e,1))+":\n";indent++;}
+  if(type=="if"){out+=pad()+"if "+clean(get(e,0))+" == "+literal(get(e,1))+":\n";indent++;}
   else if(type=="else"){indent=std::max(1,indent-1);out+=pad()+"else:\n";indent++;}
   else if(type=="endif")indent=std::max(1,indent-1);
   else if(type=="say"){std::string who=clean(get(e,0)),txt=quote(get(e,1));out+=pad()+(who=="narrator"||get(e,0).empty()?"\""+txt+"\"":who+" \""+txt+"\"")+"\n";}
@@ -45,7 +46,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_studio_renpy_mobile_NativeBridge_compi
   else if(type=="sprite"){std::string tag=clean(get(e,0)),pos=get(e,2);out+=pad()+"show "+tag+(pos=="left"||pos=="right"||pos=="center"?" at "+pos:"")+"\n";}
   else if(type=="layered"){std::string tag=clean(get(e,0)),pos=get(e,4);out+=pad()+"show "+tag+(pos=="left"||pos=="right"||pos=="center"?" at "+pos:"")+"\n";}
   else if(type=="choice")out+=pad()+"menu:\n"+pad()+"    \""+quote(get(e,0))+"\":\n"+pad()+"        $ choice_result = \"A\"\n"+pad()+"    \""+quote(get(e,1))+"\":\n"+pad()+"        $ choice_result = \"B\"\n";
-  else if(type=="set")out+=pad()+"$ "+clean(get(e,0))+" = "+(get(e,1).empty()?"True":get(e,1))+"\n";
+  else if(type=="set")out+=pad()+"$ "+clean(get(e,0))+" = "+literal(get(e,1))+"\n";
   else if(type=="music")out+=pad()+"play music \"audio/"+get(e,0)+"\" fadein 1.0\n";
   else if(type=="sound")out+=pad()+"play sound \"audio/"+get(e,0)+"\"\n";
   else if(type=="transition")out+=pad()+"with "+(get(e,0).empty()?"dissolve":clean(get(e,0)))+"\n";
