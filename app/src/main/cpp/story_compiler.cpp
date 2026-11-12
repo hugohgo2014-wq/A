@@ -241,8 +241,16 @@ Java_studio_renpy_mobile_NativeBridge_compileStory(JNIEnv* env, jclass, jstring 
             output += pad() + "jump " + clean(get(event, 0)) + "\n";
         } else if (type == "call") {
             output += pad() + "call " + clean(get(event, 0)) + "\n";
+        } else if (type == "plugin") {
+            // Plugin code is supplied by an installed extension; only install trusted plugins.
+            std::stringstream pluginSource(get(event, 2));
+            std::string pluginLine;
+            while (std::getline(pluginSource, pluginLine)) {
+                if (pluginLine.empty()) output += "\\n";
+                else output += pad() + pluginLine + "\\n";
+            }
         } else if (type == "return" || type == "end") {
-            output += pad() + "return\n";
+            output += pad() + "return\\n";
             if (type == "end") ended = true;
         }
     }
