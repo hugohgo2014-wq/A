@@ -241,7 +241,52 @@ public class MainActivity extends Activity {
   next.setOnClickListener(v->advance[0].run());dlg.show();if(dlg.getWindow()!=null)dlg.getWindow().setLayout(-1,-1);advance[0].run();
  }
  private void exportScreen(){heading("Exportar para Ren'Py","Gere um ZIP para extrair dentro da pasta game/ do projeto Ren'Py.");LinearLayout info=column();info.addView(text("PACOTE DE EXPORTAÇÃO",11,MINT,true));spaceIn(info,8);info.addView(text("• script.rpy compilado em C++\n• images/ com fundos e sprites\n• audio/ com músicas e efeitos\n• README com instruções",14,TEXT,false));card(info);content.addView(button("⇩  Gerar ZIP do projeto",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.putExtra(Intent.EXTRA_TITLE,projectId+"_renpy.zip");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,EXPORT_ZIP);},true),lp(-1,54));space(14);content.addView(text("O ZIP contém scripts e assets. Extraia na pasta game/ de um projeto Ren'Py existente. O APK não inclui o runtime Ren'Py.",12,MUTED,false));}
- private void exportZip(Uri target){try{StringBuilder input=new StringBuilder();for(int i=0;i<events.length();i++){JSONObject e=events.optJSONObject(i);if(e==null)continue;String t=e.optString("type");ArrayList<String> v=new ArrayList<>();switch(t){case"say":v.add(e.optString("speaker"));v.add(e.optString("text"));break;case"background":v.add(e.optString("file"));break;case"sprite":v.add(e.optString("name"));v.add(e.optString("file"));v.add(e.optString("position"));break;case"layered":v.add(e.optString("name"));v.add(e.optString("body"));v.add(e.optString("eyes"));v.add(e.optString("mouth"));v.add(e.optString("position"));break;case"if":case"set":v.add(e.optString("variable"));v.add(e.optString("value"));break;case"choice":v.add(e.optString("a"));v.add(e.optString("b"));break;case"music":case"sound":v.add(e.optString("file"));break;case"transition":v.add(e.optString("effect"));break;case"pause":v.add(e.optString("value"));break;case"hide":v.add(e.optString("name"));break;}input.append(t);for(String s:v)input.append("|").append(Base64.getEncoder().encodeToString(s.getBytes("UTF-8")));input.append("\n");}String script=NativeBridge.compileStory(input.toString());try(ZipOutputStream z=new ZipOutputStream(getContentResolver().openOutputStream(target))){putZip(z,"script.rpy",script);putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\nExtract these files into an existing Ren'Py project's game/ directory.\n");for(String a:assets){File f=new File(getFilesDir(),"assets/"+a);String lower=a.toLowerCase(Locale.ROOT);String folder=(lower.endsWith(".ogg")||lower.endsWith(".mp3")||lower.endsWith(".wav"))?"audio/":"images/";try(InputStream in=new FileInputStream(f)){z.putNextEntry(new ZipEntry(folder+a));byte[] b=new byte[8192];int n;while((n=in.read(b))>0)z.write(b,0,n);z.closeEntry();}}}toast("ZIP exportado.");}catch(Exception e){toast("Erro na exportação: "+e.getMessage());}}
+ private void exportZip(Uri target){
+  try{
+   StringBuilder input=new StringBuilder();
+   for(int i=0;i<events.length();i++){
+    JSONObject e=events.optJSONObject(i);if(e==null)continue;
+    String t=e.optString("type");ArrayList<String> v=new ArrayList<>();
+    switch(t){
+     case"say":v.add(e.optString("speaker"));v.add(e.optString("text"));break;
+     case"background":v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.5"));v.add(e.optString("zoom","1.0"));v.add(e.optString("rotation","0"));break;
+     case"sprite":v.add(e.optString("name"));v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));break;
+     case"layered":v.add(e.optString("name"));v.add(e.optString("left"));v.add(e.optString("right"));v.add(e.optString("head"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));break;
+     case"if":v.add(e.optString("variable"));v.add(e.optString("operator","=="));v.add(e.optString("value"));break;
+     case"set":v.add(e.optString("variable"));v.add(e.optString("value"));break;
+     case"choice":v.add(e.optString("a"));v.add(e.optString("b"));break;
+     case"music":case"sound":v.add(e.optString("file"));break;
+     case"transition":v.add(e.optString("effect"));break;
+     case"pause":v.add(e.optString("value"));break;
+     case"hide":v.add(e.optString("name"));break;
+     case"label":case"jump":case"call":v.add(e.optString("target"));break;
+    }
+    input.append(t);
+    for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));
+    input.append("\n");
+   }
+   String script=NativeBridge.compileStory(input.toString());
+   OutputStream rawOut=getContentResolver().openOutputStream(target);
+   if(rawOut==null)throw new IOException("Não foi possível criar o arquivo ZIP.");
+   try(ZipOutputStream z=new ZipOutputStream(rawOut)){
+    putZip(z,"script.rpy",script);
+    putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\nExtract these files into an existing Ren'Py project's game/ directory.\nImages are in images/, audio files in audio/, and custom fonts in fonts/.\n");
+    for(String asset:assets){
+     File file=new File(getFilesDir(),"assets/"+asset);
+     if(!file.isFile())continue;
+     String lower=asset.toLowerCase(Locale.ROOT);
+     String folder=(lower.endsWith(".ogg")||lower.endsWith(".mp3")||lower.endsWith(".wav"))?"audio/":
+       (lower.endsWith(".ttf")||lower.endsWith(".otf"))?"fonts/":"images/";
+     try(InputStream in=new FileInputStream(file)){
+      z.putNextEntry(new ZipEntry(folder+asset));byte[] buffer=new byte[8192];int count;
+      while((count=in.read(buffer))>0)z.write(buffer,0,count);
+      z.closeEntry();
+     }
+    }
+   }
+   toast("ZIP exportado.");
+  }catch(Exception e){toast("Erro na exportação: "+e.getMessage());}
+ }
  private void putZip(ZipOutputStream z,String n,String s)throws Exception{z.putNextEntry(new ZipEntry(n));z.write(s.getBytes("UTF-8"));z.closeEntry();}
  private void renameProject(){LinearLayout f=form();EditText e=field("Nome do projeto");e.setText(projectName);f.addView(e);formDialog("Nome do projeto",f,()->{projectName=e.getText().toString().trim();if(projectName.isEmpty())projectName="Minha Visual Novel";projectId=projectName.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+","_");saveProject();showScreen();});}
  private void put(JSONObject o,String k,String v){try{o.put(k,v);}catch(Exception ignored){}}
