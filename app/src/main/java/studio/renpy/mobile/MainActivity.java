@@ -355,7 +355,8 @@ public class MainActivity extends Activity {
   heading("Aparência do jogo","Personalize a tela de título, botões, caixa de diálogo, cores e fontes.");
   content.addView(button("Imagem de fundo da tela de título",()->assetDialogMatching("Fundo da tela de título",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("title_bg",v)),true),lp(-1,46));space(7);
   content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);
-  content.addView(button("Imagem dos botões (normal)",()->assetDialogMatching("Fundo normal do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_idle_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (pressionado)",()->assetDialogMatching("Fundo ativo do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_hover_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Imagem dos botões (normal)",()->assetDialogMatching("Fundo normal do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_idle_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Imagem dos botões (pressionado)",()->assetDialogMatching("Fundo ativo do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_hover_bg",v)),false),lp(-1,46));space(7);
   content.addView(button("Fonte personalizada (.ttf / .otf)",()->assetDialogMatching("Escolher fonte",new String[]{".ttf",".otf"},v->setGui("font",v)),false),lp(-1,46));space(12);
   LinearLayout current=column();current.addView(text("RECURSOS SELECIONADOS",11,MINT,true));
   current.addView(text("Tela de título: "+guiSettings.optString("title_bg","padrão"),12,TEXT,false));
