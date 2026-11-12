@@ -42,10 +42,55 @@ public class MainActivity extends Activity {
  private void studio(){heading("Seu estúdio","Crie cenas, personagens e lógica sem escrever código.");LinearLayout chips=row();for(int i=0;i<3;i++){final int k=i;TextView b=button(subs[i],()->{subtab=k;showScreen();},subtab==i);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(42),1);p.setMargins(0,0,dp(6),0);chips.addView(b,p);}content.addView(chips);space(14);if(subtab==0)sceneEditor();else if(subtab==1)eventEditor();else characterEditor();}
  private void sceneEditor(){content.addView(text("PRÉVIA DA CENA",11,MUTED,true));space(8);stage=new FrameLayout(this);stage.setBackground(shape(0xff29253b,18,0xff39344f));stage.setClipToOutline(true);LinearLayout.LayoutParams sp=lp(-1,245);sp.bottomMargin=dp(12);content.addView(stage,sp);renderStage(false);LinearLayout a=row();a.addView(button("＋ Fundo",()->addBackground(),true),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("＋ Diálogo",()->addDialogue(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(10);a=row();a.addView(button("＋ Personagem",()->addSprite(),false),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("Camadas PNG",()->addLayered(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(16);content.addView(text("Importe imagens em Assets e use o nome do arquivo ao criar fundos e personagens.",12,MUTED,false));}
  private void renderStage(boolean dialogue){if(stage==null)return;stage.removeAllViews();String bg=null;JSONObject character=null;for(int i=0;i<events.length();i++){JSONObject e=events.optJSONObject(i);if(e==null)continue;if(e.optString("type").equals("background"))bg=e.optString("file");if(e.optString("type").equals("sprite")||e.optString("type").equals("layered"))character=e;}if(bg!=null)addImage(stage,bg);else{TextView empty=text("CENA 01  •  SEM FUNDO",11,0xff77718e,true);empty.setGravity(Gravity.CENTER);stage.addView(empty,new FrameLayout.LayoutParams(-1,-1));}if(character!=null){if(character.optString("type").equals("sprite"))addImage(stage,character.optString("file"));else{addImage(stage,character.optString("body"));addImage(stage,character.optString("eyes"));addImage(stage,character.optString("mouth"));}}if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}}
- private void addImage(FrameLayout parent,String file){File f=new File(getFilesDir(),"assets/"+file);if(!f.exists())return;try{android.widget.ImageView im=new android.widget.ImageView(this);im.setImageURI(Uri.fromFile(f));im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);parent.addView(im,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));}catch(Exception ignored){}}
+ private void addImage(FrameLayout parent,String file){addImage(parent,file,0.5f,0.5f,1.0f,0.0f);}
+ private void addImage(FrameLayout parent,String file,float x,float y,float zoom,float rotation){
+  if(file==null||file.isEmpty())return;File f=new File(getFilesDir(),"assets/"+file);if(!f.exists())return;
+  try{
+   android.widget.ImageView im=new android.widget.ImageView(this);im.setImageURI(Uri.fromFile(f));im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+   parent.addView(im,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));im.setScaleX(zoom);im.setScaleY(zoom);im.setRotation(rotation);
+   parent.post(()->{im.setTranslationX((x-0.5f)*parent.getWidth());im.setTranslationY((y-0.5f)*parent.getHeight());});
+  }catch(Exception ignored){}
+ }
+ private void renderStage(boolean dialogue){
+  if(stage==null)return;stage.removeAllViews();JSONObject background=null;LinkedHashMap<String,JSONObject> active=new LinkedHashMap<>();
+  for(int i=0;i<events.length();i++){
+   JSONObject e=events.optJSONObject(i);if(e==null)continue;String type=e.optString("type"),name=e.optString("name");
+   if(type.equals("background"))background=e;
+   else if(type.equals("sprite")||type.equals("layered"))active.put(name.isEmpty()?type+"_"+i:name,e);
+   else if(type.equals("hide"))active.remove(name);
+  }
+  if(background!=null)addImage(stage,background.optString("file"),floatValue(background,"x",0.5f),floatValue(background,"y",0.5f),floatValue(background,"zoom",1),floatValue(background,"rotation",0));
+  else{TextView empty=text("CENA • SEM FUNDO",11,0xff77718e,true);empty.setGravity(Gravity.CENTER);stage.addView(empty,new FrameLayout.LayoutParams(-1,-1));}
+  for(JSONObject e:active.values()){
+   float x=floatValue(e,"x",0.5f),y=floatValue(e,"y",0.62f),z=floatValue(e,"zoom",0.9f),r=floatValue(e,"rotation",0);
+   if(e.optString("type").equals("sprite"))addImage(stage,e.optString("file"),x,y,z,r);
+   else{addImage(stage,e.optString("left"),x,y,z,r);addImage(stage,e.optString("right"),x,y,z,r);addImage(stage,e.optString("head"),x,y,z,r);}
+  }
+  if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}
+ }
+ 
  private void eventEditor(){heading("Folha de eventos","Condições + ações. Os blocos são executados de cima para baixo.");content.addView(button("＋ Adicionar evento",()->eventPicker(),true),lp(-1,48));space(12);if(events.length()==0){LinearLayout empty=column();empty.setGravity(Gravity.CENTER);empty.addView(text("◇",36,PURPLE,true));empty.addView(text("Nenhum evento ainda",16,TEXT,true));empty.addView(text("Adicione diálogos, condições e ações.",12,MUTED,false));card(empty);return;}for(int i=0;i<events.length();i++){final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;LinearLayout block=column(),top=row();top.addView(text(eventLabel(e),13,PURPLE,true),new LinearLayout.LayoutParams(0,dp(28),1));TextView more=text("⋮",22,MUTED,true);more.setGravity(Gravity.CENTER);more.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Mover para cima","Mover para baixo","Excluir"},(d,w)->{if(w==2)removeEvent(ix);else moveEvent(ix,w==0?-1:1);}).show());top.addView(more);block.addView(top);block.addView(text(eventDetail(e),13,TEXT,false));card(block);}content.addView(text("EVENTOS: "+events.length()+"  •  SALVAMENTO AUTOMÁTICO",10,MUTED,true));}
- private String eventLabel(JSONObject e){switch(e.optString("type")){case"say":return"▤  DIÁLOGO";case"background":return"▧  ALTERAR FUNDO";case"sprite":return"♙  MOSTRAR PERSONAGEM";case"layered":return"♙  PERSONAGEM EM CAMADAS";case"if":return"◇  CONDIÇÃO";case"else":return"SENÃO";case"endif":return"FIM DA CONDIÇÃO";case"set":return"⚙  DEFINIR VARIÁVEL";case"choice":return"⑂  ESCOLHA";case"music":return"♫  MÚSICA";case"sound":return"♪  EFEITO SONORO";case"transition":return"◌  TRANSIÇÃO";case"pause":return"Ⅱ  ESPERAR";case"hide":return"OCULTAR PERSONAGEM";default:return e.optString("type").toUpperCase();}}
- private String eventDetail(JSONObject e){String t=e.optString("type");if(t.equals("say"))return e.optString("speaker")+": "+e.optString("text");if(t.equals("background"))return e.optString("file");if(t.equals("sprite"))return e.optString("name")+" • "+e.optString("file")+" • "+e.optString("position");if(t.equals("layered"))return e.optString("name")+" • "+e.optString("body")+" + "+e.optString("eyes")+" + "+e.optString("mouth");if(t.equals("if")||t.equals("set"))return e.optString("variable")+" = "+e.optString("value");if(t.equals("choice"))return"A) "+e.optString("a")+" / B) "+e.optString("b");return e.optString("file",e.optString("effect",e.optString("value","")));}
+ private String eventLabel(JSONObject e){
+  switch(e.optString("type")){
+   case"say":return"DIÁLOGO";case"background":return"FUNDO";case"sprite":return"PERSONAGEM";case"layered":return"PERSONAGEM 3 PARTES";
+   case"if":return"SE / CONDIÇÃO";case"else":return"SENÃO";case"endif":return"FIM DA CONDIÇÃO";case"set":return"DEFINIR VARIÁVEL";
+   case"choice":return"ESCOLHA";case"music":return"TOCAR MÚSICA";case"sound":return"EFEITO SONORO";case"stopmusic":return"PARAR MÚSICA";
+   case"transition":return"TRANSIÇÃO";case"pause":return"ESPERAR";case"hide":return"OCULTAR";case"label":return"RÓTULO";case"jump":return"PULAR PARA";case"call":return"CHAMAR";case"return":return"RETORNAR";case"end":return"FIM DA HISTÓRIA";default:return e.optString("type").toUpperCase(Locale.ROOT);
+  }
+ }
+ private String eventDetail(JSONObject e){
+  String t=e.optString("type");
+  if(t.equals("say"))return(e.optString("speaker").isEmpty()?"Narrador":e.optString("speaker"))+": "+e.optString("text");
+  if(t.equals("background"))return e.optString("file")+" • X "+e.optString("x","0.5")+" • Y "+e.optString("y","0.5")+" • Zoom "+e.optString("zoom","1");
+  if(t.equals("sprite"))return e.optString("name")+" • "+e.optString("file")+" • X "+e.optString("x","0.5")+" • Y "+e.optString("y","0.62");
+  if(t.equals("layered"))return e.optString("name")+" • Esquerda: "+e.optString("left")+" • Direita: "+e.optString("right")+" • Cabeça: "+e.optString("head");
+  if(t.equals("if"))return e.optString("variable")+" "+e.optString("operator","==")+" "+e.optString("value");
+  if(t.equals("set"))return e.optString("variable")+" = "+e.optString("value");
+  if(t.equals("choice"))return"A) "+e.optString("a")+"  /  B) "+e.optString("b");
+  if(t.equals("label")||t.equals("jump")||t.equals("call"))return e.optString("target");
+  if(t.equals("transition"))return e.optString("effect");
+  return e.optString("file",e.optString("value",""));
+ }
  private void removeEvent(int i){JSONArray n=new JSONArray();for(int j=0;j<events.length();j++)if(j!=i)n.put(events.opt(j));events=n;saveProject();showScreen();}
  private void moveEvent(int i,int d){int j=i+d;if(j<0||j>=events.length())return;Object a=events.opt(i),b=events.opt(j);try{events.put(j,a);events.put(i,b);saveProject();showScreen();}catch(JSONException ex){Toast.makeText(this,"Não foi possível mover o evento: "+ex.getMessage(),Toast.LENGTH_LONG).show();}}
  private void addEvent(JSONObject e){events.put(e);saveProject();showScreen();}
@@ -55,9 +100,64 @@ public class MainActivity extends Activity {
  private void formDialog(String title,LinearLayout f,Runnable save){new AlertDialog.Builder(this).setTitle(title).setView(f).setNegativeButton("Cancelar",null).setPositiveButton("Adicionar",(d,w)->save.run()).show();}
  private void addDialogue(){LinearLayout f=form();EditText s=field("Nome do personagem (vazio = narrador)"),t=field("Texto do diálogo");t.setMinLines(2);f.addView(s);f.addView(t);formDialog("Novo diálogo",f,()->{JSONObject e=new JSONObject();put(e,"type","say");put(e,"speaker",s.getText().toString());put(e,"text",t.getText().toString());addEvent(e);});}
  private void assetDialog(String title,java.util.function.Consumer<String> done){if(assets.isEmpty()){new AlertDialog.Builder(this).setMessage("Importe primeiro um arquivo na aba Assets.").setPositiveButton("Abrir Assets",(d,w)->{tab=1;showScreen();}).setNegativeButton("Cancelar",null).show();return;}String[] a=assets.toArray(new String[0]);new AlertDialog.Builder(this).setTitle(title).setItems(a,(d,w)->done.accept(a[w])).show();}
- private void addBackground(){assetDialog("Escolher fundo",f->{JSONObject e=new JSONObject();put(e,"type","background");put(e,"file",f);addEvent(e);});}
- private void addSprite(){LinearLayout f=form();EditText n=field("Identificador (ex.: monika)"),file=field("Arquivo do sprite em Assets"),p=field("Posição: left, center ou right");p.setText("center");f.addView(n);f.addView(file);f.addView(p);formDialog("Personagem",f,()->{JSONObject e=new JSONObject();put(e,"type","sprite");put(e,"name",n.getText().toString());put(e,"file",file.getText().toString());put(e,"position",p.getText().toString());addEvent(e);});}
- private void addLayered(){LinearLayout f=form();EditText n=field("Identificador (ex.: monika)"),b=field("PNG 1 — corpo/base"),eyes=field("PNG 2 — olhos"),m=field("PNG 3 — boca"),p=field("Posição: left, center ou right");p.setText("center");f.addView(n);f.addView(b);f.addView(eyes);f.addView(m);f.addView(p);formDialog("Personagem composto • 3 PNGs",f,()->{JSONObject e=new JSONObject();put(e,"type","layered");put(e,"name",n.getText().toString());put(e,"body",b.getText().toString());put(e,"eyes",eyes.getText().toString());put(e,"mouth",m.getText().toString());put(e,"position",p.getText().toString());addEvent(e);});}
+ private void assetDialogMatching(String title,String[] extensions,java.util.function.Consumer<String> done){
+  ArrayList<String> matches=new ArrayList<>();
+  for(String a:assets){String lower=a.toLowerCase(Locale.ROOT);for(String ext:extensions)if(lower.endsWith(ext)){matches.add(a);break;}}
+  if(matches.isEmpty()){new AlertDialog.Builder(this).setTitle(title).setMessage("Não há arquivo compatível em Assets. Importe a imagem primeiro.").setPositiveButton("Abrir Assets",(d,w)->{tab=1;showScreen();}).setNegativeButton("Cancelar",null).show();return;}
+  String[] items=matches.toArray(new String[0]);
+  new AlertDialog.Builder(this).setTitle(title).setItems(items,(d,w)->done.accept(items[w])).show();
+ }
+ private SeekBar addSlider(LinearLayout parent,String label,int max,int progress){
+  parent.addView(text(label,12,MUTED,true),lp(-1,26));
+  SeekBar s=new SeekBar(this);s.setMax(max);s.setProgress(Math.max(0,Math.min(max,progress)));parent.addView(s,lp(-1,40));return s;
+ }
+ private void showTransformDialog(String title,JSONObject e,int editIndex,float x0,float y0,float z0,float r0){
+  LinearLayout f=form();
+  SeekBar x=addSlider(f,"Posição X • esquerda ↔ direita",1000,(int)(x0*1000));
+  SeekBar y=addSlider(f,"Posição Y • cima ↔ baixo",1000,(int)(y0*1000));
+  SeekBar z=addSlider(f,"Escala • 25% a 200%",175,Math.max(0,Math.min(175,(int)(z0*100)-25)));
+  SeekBar r=addSlider(f,"Rotação • -180° a 180°",360,(int)(r0+180));
+  formDialog(title,f,()->{
+   put(e,"x",String.format(Locale.US,"%.3f",x.getProgress()/1000.0));
+   put(e,"y",String.format(Locale.US,"%.3f",y.getProgress()/1000.0));
+   put(e,"zoom",String.format(Locale.US,"%.2f",(z.getProgress()+25)/100.0));
+   put(e,"rotation",Integer.toString(r.getProgress()-180));
+   if(editIndex<0)addEvent(e);else try{events.put(editIndex,e);saveProject();showScreen();}catch(JSONException ex){toast("Erro ao salvar posição: "+ex.getMessage());}
+  });
+ }
+ private float floatValue(JSONObject o,String key,float fallback){try{return (float)o.getDouble(key);}catch(Exception e){return fallback;}}
+ private void addBackground(){
+  assetDialogMatching("Escolher imagem de fundo",new String[]{".png",".jpg",".jpeg",".webp"},file->{
+   JSONObject e=new JSONObject();put(e,"type","background");put(e,"file",file);
+   showTransformDialog("Ajustar fundo",e,-1,0.5f,0.5f,1.0f,0.0f);
+  });
+ }
+ private void addSprite(){
+  LinearLayout f=form();EditText n=field("Nome do personagem (ex.: monika)");f.addView(n);
+  formDialog("Novo personagem",f,()->{
+   String name=n.getText().toString().trim();if(name.isEmpty())name="personagem";
+   final String tag=name;
+   assetDialogMatching("Selecionar sprite na biblioteca Assets",new String[]{".png",".jpg",".jpeg",".webp"},file->{
+    JSONObject e=new JSONObject();put(e,"type","sprite");put(e,"name",tag);put(e,"file",file);
+    showTransformDialog("Posição e tamanho do personagem",e,-1,0.5f,0.62f,0.9f,0.0f);
+   });
+  });
+ }
+ private void addLayered(){
+  LinearLayout f=form();EditText n=field("Nome do personagem (ex.: sayori)");f.addView(n);
+  formDialog("Personagem em 3 PNGs",f,()->{
+   String name=n.getText().toString().trim();if(name.isEmpty())name="personagem";
+   final String tag=name;
+   assetDialogMatching("PNG 1/3 — lado esquerdo do corpo",new String[]{".png"},left->
+    assetDialogMatching("PNG 2/3 — lado direito do corpo",new String[]{".png"},right->
+     assetDialogMatching("PNG 3/3 — cabeça (fica por cima)",new String[]{".png"},head->{
+      JSONObject e=new JSONObject();put(e,"type","layered");put(e,"name",tag);put(e,"left",left);put(e,"right",right);put(e,"head",head);
+      showTransformDialog("Posição e tamanho do personagem",e,-1,0.5f,0.62f,0.9f,0.0f);
+     })
+    )
+   );
+  });
+ }
  private void addIf(){LinearLayout f=form();EditText v=field("Variável (ex.: encontrou_carta)"),x=field("Valor esperado (True, False ou texto entre aspas)");x.setText("True");f.addView(v);f.addView(x);formDialog("Condição • SE",f,()->{JSONObject e=new JSONObject();put(e,"type","if");put(e,"variable",v.getText().toString());put(e,"value",x.getText().toString());addEvent(e);});}
  private void addSet(){LinearLayout f=form();EditText v=field("Nome da variável"),x=field("Valor (True, False, número ou texto)");f.addView(v);f.addView(x);formDialog("Definir variável",f,()->{JSONObject e=new JSONObject();put(e,"type","set");put(e,"variable",v.getText().toString());put(e,"value",x.getText().toString());addEvent(e);});}
  private void addChoice(){LinearLayout f=form();EditText a=field("Opção A"),b=field("Opção B");f.addView(a);f.addView(b);formDialog("Escolha do jogador",f,()->{JSONObject e=new JSONObject();put(e,"type","choice");put(e,"a",a.getText().toString());put(e,"b",b.getText().toString());addEvent(e);});}
@@ -66,7 +166,42 @@ public class MainActivity extends Activity {
  private void addPause(){LinearLayout f=form();EditText x=field("Duração em segundos");x.setText("1.0");f.addView(x);formDialog("Esperar",f,()->{JSONObject e=new JSONObject();put(e,"type","pause");put(e,"value",x.getText().toString());addEvent(e);});}
  private void addHide(){LinearLayout f=form();EditText x=field("Identificador do personagem");f.addView(x);formDialog("Ocultar personagem",f,()->{JSONObject e=new JSONObject();put(e,"type","hide");put(e,"name",x.getText().toString());addEvent(e);});}
  private void addSimple(String t){JSONObject e=new JSONObject();put(e,"type",t);addEvent(e);}
- private void characterEditor(){heading("Personagens","Sprites convencionais ou personagens compostos por três PNGs transparentes.");content.addView(button("＋ Novo personagem (3 camadas PNG)",this::addLayered,true),lp(-1,48));space(12);content.addView(button("＋ Sprite de imagem única",this::addSprite,false),lp(-1,48));space(16);for(int i=0;i<events.length();i++){JSONObject e=events.optJSONObject(i);if(e!=null&&(e.optString("type").equals("sprite")||e.optString("type").equals("layered"))){LinearLayout c=column();c.addView(text(e.optString("name"),16,TEXT,true));c.addView(text(eventDetail(e),12,MUTED,false));card(c);}}}
+ private void characterEditor(){
+  heading("Personagens","Um PNG ou composição de três PNGs transparentes: lado esquerdo, lado direito e cabeça.");
+  content.addView(button("＋ Personagem Doki-Doki (3 PNGs)",this::addLayered,true),lp(-1,48));space(8);
+  content.addView(button("＋ Personagem com um PNG",this::addSprite,false),lp(-1,46));space(14);
+  for(int i=0;i<events.length();i++){
+   final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;
+   String t=e.optString("type");
+   if(t.equals("sprite")||t.equals("layered")){
+    LinearLayout c=column();c.addView(text(e.optString("name"),16,TEXT,true));c.addView(text(eventDetail(e),12,MUTED,false));
+    c.setOnClickListener(v->editVisualEvent(ix));card(c);
+   }
+  }
+ }
+ private void editVisualEvent(int index){
+  JSONObject e=events.optJSONObject(index);if(e==null)return;String type=e.optString("type");
+  if(type.equals("sprite")){
+   assetDialogMatching("Trocar PNG do personagem",new String[]{".png",".jpg",".jpeg",".webp"},file->{
+    put(e,"file",file);
+    showTransformDialog("Editar posição e tamanho",e,index,floatValue(e,"x",0.5f),floatValue(e,"y",0.62f),floatValue(e,"zoom",0.9f),floatValue(e,"rotation",0));
+   });
+  }else if(type.equals("layered")){
+   assetDialogMatching("PNG 1/3 — lado esquerdo do corpo",new String[]{".png"},left->
+    assetDialogMatching("PNG 2/3 — lado direito do corpo",new String[]{".png"},right->
+     assetDialogMatching("PNG 3/3 — cabeça por cima",new String[]{".png"},head->{
+      put(e,"left",left);put(e,"right",right);put(e,"head",head);
+      showTransformDialog("Editar composição e posição",e,index,floatValue(e,"x",0.5f),floatValue(e,"y",0.62f),floatValue(e,"zoom",0.9f),floatValue(e,"rotation",0));
+     })
+    )
+   );
+  }else if(type.equals("background")){
+   assetDialogMatching("Trocar fundo",new String[]{".png",".jpg",".jpeg",".webp"},file->{
+    put(e,"file",file);
+    showTransformDialog("Editar enquadramento do fundo",e,index,floatValue(e,"x",0.5f),floatValue(e,"y",0.5f),floatValue(e,"zoom",1),floatValue(e,"rotation",0));
+   });
+  }
+ }
  private void assetScreen(){heading("Biblioteca de assets","Imagens PNG/JPG, músicas e efeitos sonoros.");content.addView(button("＋ Importar arquivo do dispositivo",this::pickAsset,true),lp(-1,48));space(14);if(assets.isEmpty())content.addView(text("Sua biblioteca está vazia. Importe sprites, fundos e áudio.",13,MUTED,false));for(String a:new ArrayList<>(assets)){LinearLayout r=row();r.addView(text("▧   "+a,13,TEXT,true),new LinearLayout.LayoutParams(0,dp(44),1));TextView del=text("Remover",11,0xffff8c9b,true);del.setOnClickListener(v->{assets.remove(a);new File(getFilesDir(),"assets/"+a).delete();saveProject();showScreen();});r.addView(del);card(r);}}
  private void pickAsset(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("*/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_ASSET);}
  @Override protected void onActivityResult(int r,int c,Intent d){super.onActivityResult(r,c,d);if(c!=RESULT_OK||d==null||d.getData()==null)return;if(r==PICK_ASSET)importAsset(d.getData());else if(r==EXPORT_ZIP)exportZip(d.getData());}
