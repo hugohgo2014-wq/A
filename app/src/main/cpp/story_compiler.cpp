@@ -14,7 +14,7 @@ static std::string b64(const std::string& in) {
 static std::vector<std::string> split(const std::string&s,char d){std::vector<std::string>v;std::stringstream ss(s);std::string x;while(std::getline(ss,x,d))v.push_back(x);return v;}
 static std::string clean(const std::string&s){std::string r;for(unsigned char c:s)if(std::isalnum(c)||c=='_')r.push_back((char)std::tolower(c));if(r.empty())r="asset";if(std::isdigit((unsigned char)r[0]))r="a_"+r;return r;}
 static std::string quote(const std::string&s){std::string r;for(char c:s){if(c=='\\'||c=='"')r.push_back('\\');if(c=='\n')r+="\\n";else if(c!='\r')r.push_back(c);}return r;}
-static std::string literal(const std::string&s){if(s.empty())return "True";if(s=="True"||s=="False"||s=="None"||s.front()=='"'||std::isdigit((unsigned char)s.front())||s.front()=='-')return s;return "\\""+quote(s)+"\\"";}
+static std::string literal(const std::string&s){if(s.empty())return "True";if(s=="True"||s=="False"||s=="None"||s.front()=='"'||std::isdigit((unsigned char)s.front())||s.front()=='-')return s;return "\""+quote(s)+"\"";}
 struct Event { std::string type; std::vector<std::string> a; };
 extern "C" JNIEXPORT jstring JNICALL Java_studio_renpy_mobile_NativeBridge_compileStory(JNIEnv*env,jclass,jstring input){
  const char*raw=env->GetStringUTFChars(input,nullptr);std::string data(raw?raw:"");if(raw)env->ReleaseStringUTFChars(input,raw);
