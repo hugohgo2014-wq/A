@@ -178,7 +178,8 @@ public class MainActivity extends Activity {
   if(t.equals("if"))return e.optString("variable")+" "+e.optString("operator","==")+" "+e.optString("value");
   if(t.equals("set"))return e.optString("variable")+" = "+e.optString("value");
   if(t.equals("choice"))return"A) "+e.optString("a")+"  /  B) "+e.optString("b");
-  if(t.equals("plugin"))return e.optString("plugin_id")+":"+e.optString("action_id")+" • "+e.optString("plugin_label");\n  if(t.equals("label")||t.equals("jump")||t.equals("call"))return e.optString("target");
+  if(t.equals("plugin"))return e.optString("plugin_id")+":"+e.optString("action_id")+" • "+e.optString("plugin_label");
+  if(t.equals("label")||t.equals("jump")||t.equals("call"))return e.optString("target");
   if(t.equals("transition"))return e.optString("effect");
   return e.optString("file",e.optString("value",""));
  }
@@ -494,7 +495,8 @@ public class MainActivity extends Activity {
      case"transition":v.add(e.optString("effect"));break;
      case"pause":v.add(e.optString("value"));break;
      case"hide":v.add(e.optString("name"));break;
-     case"label":case"jump":case"call":v.add(e.optString("target"));break;\n     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;
+     case"label":case"jump":case"call":v.add(e.optString("target"));break;
+     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;\n     case"plugin":v.add(e.optString("plugin_id"));v.add(e.optString("action_id"));v.add(e.optString("code"));break;
     }
     input.append(t);
     for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));
