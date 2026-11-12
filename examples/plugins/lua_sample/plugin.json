@@ -1,0 +1,7 @@
+{
+  "id": "example.extra_actions",
+  "name": "Example Extra Actions",
+  "version": "1.0.0",
+  "type": "lua",
+  "entry": "main.lua"
+}
