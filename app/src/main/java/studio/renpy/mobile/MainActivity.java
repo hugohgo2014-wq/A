@@ -354,7 +354,7 @@ public class MainActivity extends Activity {
  private void appearanceScreen(){
   heading("Aparência do jogo","Personalize a tela de título, botões, caixa de diálogo, cores e fontes.");
   content.addView(button("Imagem de fundo da tela de título",()->assetDialogMatching("Fundo da tela de título",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("title_bg",v)),true),lp(-1,46));space(7);
-  content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (normal)",()->assetDialogMatching("Fundo normal do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_idle_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (pressionado)",()->assetDialogMatching("Fundo ativo do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_hover_bg",v)),false),lp(-1,46));space(7);
   content.addView(button("Fonte personalizada (.ttf / .otf)",()->assetDialogMatching("Escolher fonte",new String[]{".ttf",".otf"},v->setGui("font",v)),false),lp(-1,46));space(12);
   LinearLayout current=column();current.addView(text("RECURSOS SELECIONADOS",11,MINT,true));
   current.addView(text("Tela de título: "+guiSettings.optString("title_bg","padrão"),12,TEXT,false));
@@ -381,33 +381,39 @@ public class MainActivity extends Activity {
   return "\"" + value.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","") + "\"";
  }
  private String buildGuiScript(){
-  StringBuilder out=new StringBuilder("# Generated GUI settings.\ninit 999 python:\n");
-  String title=guiSettings.optString("title_bg","");if(!title.isEmpty())out.append("    gui.main_menu_background = ").append(pyQuote("images/"+title)).append("\n");
-  String box=guiSettings.optString("dialogue_bg","");if(!box.isEmpty())out.append("    gui.textbox = ").append(pyQuote("images/"+box)).append("\n");
+  StringBuilder out=new StringBuilder("# Generated GUI settings.\\ninit 999 python:\\n");
   String font=guiSettings.optString("font","");if(!font.isEmpty()){
-   out.append("    gui.text_font = ").append(pyQuote("fonts/"+font)).append("\n");
-   out.append("    gui.interface_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
-   out.append("    gui.button_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+   out.append("    gui.text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
+   out.append("    gui.interface_text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
+   out.append("    gui.button_text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
   }
-  out.append("    gui.text_color = ").append(pyQuote(guiSettings.optString("text_color","#FFFFFF"))).append("\n");
-  out.append("    gui.accent_color = ").append(pyQuote(guiSettings.optString("accent_color","#C8A2FF"))).append("\n");
-  out.append("    gui.idle_color = ").append(pyQuote(guiSettings.optString("idle_color","#8A8299"))).append("\n");
-  out.append("    gui.hover_color = ").append(pyQuote(guiSettings.optString("hover_color","#FFFFFF"))).append("\n");
-  out.append("    gui.text_size = ").append(guiSettings.optInt("text_size",30)).append("\n");
-  out.append("    gui.name_text_size = ").append(guiSettings.optInt("text_size",30)+6).append("\n");
-  out.append("    gui.textbox_height = ").append(guiSettings.optInt("textbox_height",230)).append("\n");
+  out.append("    gui.text_color = ").append(pyQuote(guiSettings.optString("text_color","#FFFFFF"))).append("\\n");
+  out.append("    gui.accent_color = ").append(pyQuote(guiSettings.optString("accent_color","#C8A2FF"))).append("\\n");
+  out.append("    gui.idle_color = ").append(pyQuote(guiSettings.optString("idle_color","#8A8299"))).append("\\n");
+  out.append("    gui.hover_color = ").append(pyQuote(guiSettings.optString("hover_color","#FFFFFF"))).append("\\n");
+  out.append("    gui.button_text_idle_color = gui.idle_color\\n");
+  out.append("    gui.button_text_hover_color = gui.hover_color\\n");
+  out.append("    gui.choice_button_text_idle_color = gui.idle_color\\n");
+  out.append("    gui.choice_button_text_hover_color = gui.hover_color\\n");
+  out.append("    gui.text_size = ").append(guiSettings.optInt("text_size",30)).append("\\n");
+  out.append("    gui.name_text_size = ").append(guiSettings.optInt("text_size",30)+6).append("\\n");
+  out.append("    gui.textbox_height = ").append(guiSettings.optInt("textbox_height",230)).append("\\n");
   return out.toString();
  }
+ 
  private String buildRpaScript(){
-  return "# Ren'Py archive configuration. Use Build Distributions in the Ren'Py Launcher to create .rpa files.\n"+
-   "init python:\n"+
-   "    build.archive(\"studio_images\", \"all\")\n"+
-   "    build.classify(\"game/images/**\", \"studio_images\")\n"+
-   "    build.archive(\"studio_audio\", \"all\")\n"+
-   "    build.classify(\"game/audio/**\", \"studio_audio\")\n"+
-   "    build.archive(\"studio_fonts\", \"all\")\n"+
-   "    build.classify(\"game/fonts/**\", \"studio_fonts\")\n";
+  return "# Ren'Py archive configuration. Run Build Distributions in the Ren'Py Launcher to create .rpa files.\\n"+
+   "init python:\\n"+
+   "    build.archive(\\"studio_gui\\", \\"all\\")\\n"+
+   "    build.classify(\\"game/gui/**\\", \\"studio_gui\\")\\n"+
+   "    build.archive(\\"studio_images\\", \\"all\\")\\n"+
+   "    build.classify(\\"game/images/**\\", \\"studio_images\\")\\n"+
+   "    build.archive(\\"studio_audio\\", \\"all\\")\\n"+
+   "    build.classify(\\"game/audio/**\\", \\"studio_audio\\")\\n"+
+   "    build.archive(\\"studio_fonts\\", \\"all\\")\\n"+
+   "    build.classify(\\"game/fonts/**\\", \\"studio_fonts\\")\\n";
  }
+ 
  private String buildRpycShell(){
   return "#!/bin/sh\nset -eu\nif [ \"$#\" -ne 1 ]; then echo \"Usage: RENPY_SDK=/path/to/renpy-sdk $0 /path/to/project\"; exit 2; fi\n"+
    "if [ -z \"$RENPY_SDK\" ]; then echo \"Set RENPY_SDK to your Ren'Py SDK directory\"; exit 2; fi\n"+
@@ -427,12 +433,19 @@ public class MainActivity extends Activity {
   content.addView(text("O app inclui a configuração e os comandos oficiais no pacote. A compilação .rpyc e a criação real dos .rpa são executadas pelo SDK/Launcher do Ren'Py.",11,MUTED,false));space(12);
   content.addView(button("⇩  Gerar ZIP do projeto",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.putExtra(Intent.EXTRA_TITLE,projectId+"_renpy.zip");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,EXPORT_ZIP);},true),lp(-1,54));
  }
+ private void copyAssetToZip(ZipOutputStream z,String asset,String destination)throws Exception{
+  File file=new File(getFilesDir(),"assets/"+asset);if(!file.isFile())throw new IOException("Asset não encontrado: "+asset);
+  try(InputStream in=new FileInputStream(file)){
+   z.putNextEntry(new ZipEntry(destination));byte[] buffer=new byte[8192];int count;
+   while((count=in.read(buffer))>0)z.write(buffer,0,count);
+   z.closeEntry();
+  }
+ }
  private void exportZip(Uri target){
   try{
    StringBuilder input=new StringBuilder();
    for(int i=0;i<events.length();i++){
-    JSONObject e=events.optJSONObject(i);if(e==null)continue;
-    String t=e.optString("type");ArrayList<String> v=new ArrayList<>();
+    JSONObject e=events.optJSONObject(i);if(e==null)continue;String t=e.optString("type");ArrayList<String> v=new ArrayList<>();
     switch(t){
      case"say":v.add(e.optString("speaker"));v.add(e.optString("text"));break;
      case"background":v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.5"));v.add(e.optString("zoom","1.0"));v.add(e.optString("rotation","0"));break;
@@ -447,27 +460,30 @@ public class MainActivity extends Activity {
      case"hide":v.add(e.optString("name"));break;
      case"label":case"jump":case"call":v.add(e.optString("target"));break;
     }
-    input.append(t);
-    for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));
-    input.append("\n");
+    input.append(t);for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));input.append("\\n");
    }
    String script=NativeBridge.compileStory(input.toString());
-   OutputStream rawOut=getContentResolver().openOutputStream(target);
-   if(rawOut==null)throw new IOException("Não foi possível criar o arquivo ZIP.");
+   OutputStream rawOut=getContentResolver().openOutputStream(target);if(rawOut==null)throw new IOException("Não foi possível criar o ZIP.");
    try(ZipOutputStream z=new ZipOutputStream(rawOut)){
     putZip(z,"script.rpy",script);
-    putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\nExtract these files into an existing Ren'Py project's game/ directory.\nImages are in images/, audio files in audio/, and custom fonts in fonts/.\n");
+    putZip(z,"zz_studio_gui.rpy",buildGuiScript());
+    if(includeRpaConfig)putZip(z,"zz_studio_archives.rpy",buildRpaScript());
+    if(includeRpycHelper){putZip(z,"COMPILE_RPYC.sh",buildRpycShell());putZip(z,"COMPILE_RPYC.bat",buildRpycBat());}
+    putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\\nExtract the contents of this ZIP into an existing Ren'Py project's game/ directory.\\nCustom title and dialogue images are in gui/.\\nFonts are in fonts/.\\nUse the Ren'Py Launcher Build Distributions option to create .rpa archives.\\nRun COMPILE_RPYC.sh or COMPILE_RPYC.bat with a Ren'Py SDK to compile .rpy into .rpyc.\\n");
+    HashSet<String> guiAssets=new HashSet<>();
+    String title=guiSettings.optString("title_bg",""),dialogue=guiSettings.optString("dialogue_bg","");
+    String idle=guiSettings.optString("button_idle_bg",""),hover=guiSettings.optString("button_hover_bg","");
+    if(!title.isEmpty()){copyAssetToZip(z,title,"gui/main_menu.png");guiAssets.add(title);}
+    if(!dialogue.isEmpty()){copyAssetToZip(z,dialogue,"gui/textbox.png");guiAssets.add(dialogue);}
+    if(!idle.isEmpty()){copyAssetToZip(z,idle,"gui/button/idle_background.png");guiAssets.add(idle);}
+    if(!hover.isEmpty()){copyAssetToZip(z,hover,"gui/button/hover_background.png");guiAssets.add(hover);}
     for(String asset:assets){
-     File file=new File(getFilesDir(),"assets/"+asset);
-     if(!file.isFile())continue;
+     if(guiAssets.contains(asset))continue;
+     File file=new File(getFilesDir(),"assets/"+asset);if(!file.isFile())continue;
      String lower=asset.toLowerCase(Locale.ROOT);
      String folder=(lower.endsWith(".ogg")||lower.endsWith(".mp3")||lower.endsWith(".wav"))?"audio/":
        (lower.endsWith(".ttf")||lower.endsWith(".otf"))?"fonts/":"images/";
-     try(InputStream in=new FileInputStream(file)){
-      z.putNextEntry(new ZipEntry(folder+asset));byte[] buffer=new byte[8192];int count;
-      while((count=in.read(buffer))>0)z.write(buffer,0,count);
-      z.closeEntry();
-     }
+     copyAssetToZip(z,asset,folder+asset);
     }
    }
    toast("ZIP exportado.");
