@@ -43,10 +43,14 @@ public class MainActivity extends Activity {
  private void sceneEditor(){content.addView(text("PRÉVIA DA CENA",11,MUTED,true));space(8);stage=new FrameLayout(this);stage.setBackground(shape(0xff29253b,18,0xff39344f));stage.setClipToOutline(true);LinearLayout.LayoutParams sp=lp(-1,245);sp.bottomMargin=dp(12);content.addView(stage,sp);renderStage(false);LinearLayout a=row();a.addView(button("＋ Fundo",()->addBackground(),true),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("＋ Diálogo",()->addDialogue(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(10);a=row();a.addView(button("＋ Personagem",()->addSprite(),false),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("Camadas PNG",()->addLayered(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(16);content.addView(text("Importe imagens em Assets e use o nome do arquivo ao criar fundos e personagens.",12,MUTED,false));}
  private void addImage(FrameLayout parent,String file){addImage(parent,file,0.5f,0.5f,1.0f,0.0f);}
  private void addImage(FrameLayout parent,String file,float x,float y,float zoom,float rotation){
+  addImage(parent,file,x,y,zoom,rotation,false,1.0f);
+ }
+ private void addImage(FrameLayout parent,String file,float x,float y,float zoom,float rotation,boolean flipX,float alpha){
   if(file==null||file.isEmpty())return;File f=new File(getFilesDir(),"assets/"+file);if(!f.exists())return;
   try{
    android.widget.ImageView im=new android.widget.ImageView(this);im.setImageURI(Uri.fromFile(f));im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-   parent.addView(im,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));im.setScaleX(zoom);im.setScaleY(zoom);im.setRotation(rotation);
+   parent.addView(im,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
+   im.setScaleX(zoom*(flipX?-1.0f:1.0f));im.setScaleY(zoom);im.setRotation(rotation);im.setAlpha(Math.max(0.0f,Math.min(1.0f,alpha)));
    parent.post(()->{im.setTranslationX((x-0.5f)*parent.getWidth());im.setTranslationY((y-0.5f)*parent.getHeight());});
   }catch(Exception ignored){}
  }
@@ -57,49 +61,81 @@ public class MainActivity extends Activity {
    if(type.equals("background"))background=e;
    else if(type.equals("sprite")||type.equals("layered"))active.put(name.isEmpty()?type+"_"+i:name,e);
    else if(type.equals("hide"))active.remove(name);
+   else if(type.equals("transform")){
+    JSONObject current=active.get(e.optString("target"));
+    if(current!=null)try{
+     JSONObject changed=new JSONObject(current.toString());
+     put(changed,"x",e.optString("x","0.5"));put(changed,"y",e.optString("y","0.62"));
+     put(changed,"zoom",e.optString("zoom","0.9"));put(changed,"rotation",e.optString("rotation","0"));
+     put(changed,"flip_x",e.optString("flip_x","false"));put(changed,"alpha",e.optString("alpha","1"));
+     active.put(e.optString("target"),changed);
+    }catch(Exception ignored){}
+   }
   }
   if(background!=null)addImage(stage,background.optString("file"),floatValue(background,"x",0.5f),floatValue(background,"y",0.5f),floatValue(background,"zoom",1),floatValue(background,"rotation",0));
   else{TextView empty=text("CENA • SEM FUNDO",11,0xff77718e,true);empty.setGravity(Gravity.CENTER);stage.addView(empty,new FrameLayout.LayoutParams(-1,-1));}
   for(JSONObject e:active.values()){
    float x=floatValue(e,"x",0.5f),y=floatValue(e,"y",0.62f),z=floatValue(e,"zoom",0.9f),r=floatValue(e,"rotation",0);
-   if(e.optString("type").equals("sprite"))addImage(stage,e.optString("file"),x,y,z,r);
-   else{addImage(stage,e.optString("left"),x,y,z,r);addImage(stage,e.optString("right"),x,y,z,r);addImage(stage,e.optString("head"),x,y,z,r);}
+   boolean flip=e.optBoolean("flip_x",false);float alpha=floatValue(e,"alpha",1.0f);
+   if(e.optString("type").equals("sprite"))addImage(stage,e.optString("file"),x,y,z,r,flip,alpha);
+   else{
+    addImage(stage,e.optString("left"),x,y,z,r,flip,alpha);
+    addImage(stage,e.optString("right"),x,y,z,r,flip,alpha);
+    addImage(stage,e.optString("head"),x,y,z,r,flip,alpha);
+   }
   }
   if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}
  }
  
  private void eventEditor(){
-  heading("Folha de eventos","Adicione blocos visuais para diálogos, ações, condições e fluxo da história.");
-  LinearLayout add=row();
-  add.addView(button("＋ Ação",()->eventPicker(),true),new LinearLayout.LayoutParams(0,dp(44),1));
-  add.addView(button("◇ Condição",()->addIf(),false),new LinearLayout.LayoutParams(0,dp(44),1));
-  addViewSpace(add,6);
-  content.addView(add);
-  space(8);
-  content.addView(button("＋ Rótulo / Pular / Chamar / Retornar",()->flowPicker(),false),lp(-1,42));
-  space(12);
+  heading("Timeline da história","Cada bloco é um clipe. Toque para editar; mantenha pressionado para duplicar, mover ou excluir.");
+  LinearLayout actions=row();
+  actions.addView(button("＋ BLOCO",()->eventPicker(),true),new LinearLayout.LayoutParams(0,dp(44),1));
+  LinearLayout.LayoutParams playParams=new LinearLayout.LayoutParams(0,dp(44),1);playParams.leftMargin=dp(8);
+  actions.addView(button("▶ PLAYTEST",()->{tab=3;showScreen();},false),playParams);
+  content.addView(actions);space(12);
+  content.addView(text("TRILHA PRINCIPAL  •  ORDEM DE EXECUÇÃO",11,MUTED,true),lp(-1,26));
   if(events.length()==0){
-   LinearLayout empty=column();empty.setGravity(Gravity.CENTER);
-   empty.addView(text("◇",36,PURPLE,true));empty.addView(text("Folha vazia",16,TEXT,true));
-   empty.addView(text("Comece adicionando uma ação ou condição.",12,MUTED,false));card(empty);return;
+   LinearLayout empty=column();empty.setGravity(Gravity.CENTER);empty.addView(text("＋",34,PURPLE,true));
+   empty.addView(text("Timeline vazia",16,TEXT,true));
+   empty.addView(text("Adicione diálogo, fundo, personagem ou áudio.",12,MUTED,false));card(empty);return;
   }
+  HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);
+  LinearLayout clips=row();clips.setPadding(0,dp(4),0,dp(8));
   for(int i=0;i<events.length();i++){
    final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;
    String type=e.optString("type");
-   int railColor=(type.equals("if")||type.equals("else")||type.equals("endif"))?MINT:
-      (type.equals("say")||type.equals("choice"))?PURPLE:0xff68a9ed;
-   LinearLayout block=row(),body=column(),top=row();
-   View rail=new View(this);rail.setBackground(shape(railColor,8,0));block.addView(rail,lp(5,60));
-   LinearLayout.LayoutParams bodyParams=new LinearLayout.LayoutParams(0,-2,1);bodyParams.leftMargin=dp(10);block.addView(body,bodyParams);
-   top.addView(text(String.format(Locale.ROOT,"%02d  %s",i+1,eventLabel(e)),12,railColor,true),new LinearLayout.LayoutParams(0,dp(28),1));
-   TextView more=text("⋮",22,MUTED,true);more.setGravity(Gravity.CENTER);
-   more.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Editar bloco","Mover para cima","Mover para baixo","Duplicar","Excluir"},(d,w)->{
-    if(w==0)editEvent(ix);else if(w==1)moveEvent(ix,-1);else if(w==2)moveEvent(ix,1);else if(w==3)duplicateEvent(ix);else removeEvent(ix);
-   }).show());
-   top.addView(more);body.addView(top);body.addView(text(eventDetail(e),13,TEXT,false));
-   block.setOnClickListener(v->editEvent(ix));card(block);
+   int color=(type.equals("say")||type.equals("choice"))?0xff4b3c70:
+    (type.equals("background")||type.equals("sprite")||type.equals("layered")||type.equals("transform"))?0xff244c50:
+    (type.equals("if")||type.equals("set"))?0xff57472a:0xff30364e;
+   LinearLayout clip=column();clip.setGravity(Gravity.CENTER_VERTICAL);pad(clip,10);
+   clip.setBackground(shape(color,12,0xff55506b));
+   clip.addView(text(String.format(Locale.ROOT,"%02d",i+1),10,MINT,true),lp(-1,18));
+   TextView title=text(eventLabel(e),11,TEXT,true);title.setMaxLines(2);clip.addView(title,lp(-1,38));
+   TextView detail=text(eventDetail(e),10,MUTED,false);detail.setMaxLines(1);clip.addView(detail,lp(-1,18));
+   LinearLayout.LayoutParams cp=lp(132,88);cp.rightMargin=dp(8);clips.addView(clip,cp);
+   clip.setOnClickListener(v->editEvent(ix));
+   clip.setOnLongClickListener(v->{showEventMenu(ix);return true;});
   }
-  content.addView(text("BLOCOS: "+events.length()+"  •  SALVAMENTO AUTOMÁTICO",10,MUTED,true));
+  scroll.addView(clips);content.addView(scroll,lp(-1,108));space(8);
+  LinearLayout header=row();header.addView(text("BLOCOS",11,MUTED,true),new LinearLayout.LayoutParams(0,dp(28),1));
+  header.addView(text(events.length()+" clipes",10,MUTED,false));content.addView(header);
+  for(int i=0;i<events.length();i++){
+   JSONObject e=events.optJSONObject(i);if(e==null)continue;final int ix=i;
+   LinearLayout line=row();line.setBackground(shape(PANEL,12,0xff302d43));pad(line,9);
+   line.addView(text(String.format(Locale.ROOT,"%02d",i+1),11,MINT,true),lp(28,38));
+   LinearLayout info=column();info.addView(text(eventLabel(e),12,TEXT,true),lp(-1,22));
+   TextView detail=text(eventDetail(e),11,MUTED,false);detail.setMaxLines(1);info.addView(detail,lp(-1,20));
+   line.addView(info,new LinearLayout.LayoutParams(0,-2,1));
+   TextView edit=text("›",24,PURPLE,true);edit.setGravity(Gravity.CENTER);line.addView(edit,lp(28,38));
+   line.setOnClickListener(v->editEvent(ix));line.setOnLongClickListener(v->{showEventMenu(ix);return true;});
+   LinearLayout.LayoutParams rowParams=lp(-1,-2);rowParams.bottomMargin=dp(6);content.addView(line,rowParams);
+  }
+ }
+ private void showEventMenu(int index){
+  new AlertDialog.Builder(this).setItems(new String[]{"Editar","Mover para cima","Mover para baixo","Duplicar","Excluir"},(d,w)->{
+   if(w==0)editEvent(index);else if(w==1)moveEvent(index,-1);else if(w==2)moveEvent(index,1);else if(w==3)duplicateEvent(index);else removeEvent(index);
+  }).show();
  }
  private void addViewSpace(LinearLayout parent,int width){View v=new View(this);parent.addView(v,lp(width,1));}
  private void duplicateEvent(int index){
@@ -116,6 +152,7 @@ public class MainActivity extends Activity {
  }
  private void editEvent(int index){
   JSONObject e=events.optJSONObject(index);if(e==null)return;String type=e.optString("type");
+  if(type.equals("transform")){editTransformEvent(index);return;}
   if(type.equals("sprite")||type.equals("layered")||type.equals("background")){editVisualEvent(index);return;}
   if(type.equals("say")){
    LinearLayout f=form();EditText speaker=field("Personagem / narrador"),line=field("Texto do diálogo");
@@ -166,7 +203,7 @@ public class MainActivity extends Activity {
    case"say":return"DIÁLOGO";case"background":return"FUNDO";case"sprite":return"PERSONAGEM";case"layered":return"PERSONAGEM 3 PARTES";
    case"if":return"SE / CONDIÇÃO";case"else":return"SENÃO";case"endif":return"FIM DA CONDIÇÃO";case"set":return"DEFINIR VARIÁVEL";
    case"choice":return"ESCOLHA";case"music":return"TOCAR MÚSICA";case"sound":return"EFEITO SONORO";case"stopmusic":return"PARAR MÚSICA";
-   case"transition":return"TRANSIÇÃO";case"pause":return"ESPERAR";case"hide":return"OCULTAR";case"plugin":return e.optString("plugin_label","AÇÃO DE PLUGIN");case"label":return"RÓTULO";case"jump":return"PULAR PARA";case"call":return"CHAMAR";case"return":return"RETORNAR";case"end":return"FIM DA HISTÓRIA";default:return e.optString("type").toUpperCase(Locale.ROOT);
+   case"transition":return"TRANSIÇÃO";case"pause":return"ESPERAR";case"hide":return"OCULTAR";case"transform":return"TRANSFORMAR PERSONAGEM";case"plugin":return e.optString("plugin_label","AÇÃO DE PLUGIN");case"label":return"RÓTULO";case"jump":return"PULAR PARA";case"call":return"CHAMAR";case"return":return"RETORNAR";case"end":return"FIM DA HISTÓRIA";default:return e.optString("type").toUpperCase(Locale.ROOT);
   }
  }
  private String eventDetail(JSONObject e){
@@ -178,6 +215,7 @@ public class MainActivity extends Activity {
   if(t.equals("if"))return e.optString("variable")+" "+e.optString("operator","==")+" "+e.optString("value");
   if(t.equals("set"))return e.optString("variable")+" = "+e.optString("value");
   if(t.equals("choice"))return"A) "+e.optString("a")+"  /  B) "+e.optString("b");
+  if(t.equals("transform"))return e.optString("target")+" • "+(floatValue(e,"x",0.5f)<0.34f?"esquerda":floatValue(e,"x",0.5f)>0.66f?"direita":"centro")+(e.optBoolean("flip_x",false)?" • espelhado":"");
   if(t.equals("plugin"))return e.optString("plugin_id")+":"+e.optString("action_id")+" • "+e.optString("plugin_label");
   if(t.equals("label")||t.equals("jump")||t.equals("call"))return e.optString("target");
   if(t.equals("transition"))return e.optString("effect");
@@ -187,26 +225,29 @@ public class MainActivity extends Activity {
  private void moveEvent(int i,int d){int j=i+d;if(j<0||j>=events.length())return;Object a=events.opt(i),b=events.opt(j);try{events.put(j,a);events.put(i,b);saveProject();showScreen();}catch(JSONException ex){Toast.makeText(this,"Não foi possível mover o evento: "+ex.getMessage(),Toast.LENGTH_LONG).show();}}
  private void addEvent(JSONObject e){events.put(e);saveProject();showScreen();}
  private void eventPicker(){
-  ArrayList<String> names=new ArrayList<>(Arrays.asList("Diálogo","Alterar fundo","Personagem (PNG)","Personagem em 3 PNGs","Definir variável","Escolha do jogador","Tocar música","Tocar efeito sonoro","Parar música","Transição","Esperar","Ocultar personagem","Senão","Fim da condição","Finalizar história"));
+  ArrayList<String> names=new ArrayList<>(Arrays.asList(
+   "Diálogo","Fundo / cenário","Personagem PNG","Personagem em 3 PNGs",
+   "Transformar personagem • lado / espelhar","Escolha do jogador","Definir variável",
+   "Condição SE","Tocar música","Efeito sonoro","Parar música","Transição",
+   "Esperar","Ocultar personagem","Rótulo / pular / chamar","Finalizar história"
+  ));
   List<PluginManager.Action> pluginActions=pluginManager==null?Collections.emptyList():pluginManager.getActions();
   for(PluginManager.Action action:pluginActions)names.add("PLUGIN • "+action.label);
   String[] choices=names.toArray(new String[0]);
-  new AlertDialog.Builder(this).setTitle("Adicionar ação").setItems(choices,(d,w)->{
-   if(w>=15){
-    PluginManager.Action action=pluginActions.get(w-15);
-    JSONObject event=new JSONObject();
+  new AlertDialog.Builder(this).setTitle("Adicionar bloco à timeline").setItems(choices,(d,w)->{
+   if(w>=16){
+    PluginManager.Action action=pluginActions.get(w-16);JSONObject event=new JSONObject();
     put(event,"type","plugin");put(event,"plugin_id",action.pluginId);put(event,"action_id",action.id);
     put(event,"plugin_label",action.label);put(event,"code",action.renpyCode);addEvent(event);return;
    }
    switch(w){
     case 0:addDialogue();break;case 1:addBackground();break;case 2:addSprite();break;case 3:addLayered();break;
-    case 4:addSet();break;case 5:addChoice();break;case 6:addAudio("music");break;case 7:addAudio("sound");break;
-    case 8:addSimple("stopmusic");break;case 9:addTransition();break;case 10:addPause();break;case 11:addHide();break;
-    case 12:addSimple("else");break;case 13:addSimple("endif");break;case 14:addSimple("end");break;
+    case 4:addTransformEvent();break;case 5:addChoice();break;case 6:addSet();break;case 7:addIf();break;
+    case 8:addAudio("music");break;case 9:addAudio("sound");break;case 10:addSimple("stopmusic");break;
+    case 11:addTransition();break;case 12:addPause();break;case 13:addHide();break;case 14:flowPicker();break;case 15:addSimple("end");break;
    }
   }).show();
  }
-
  private LinearLayout form(){LinearLayout l=column();pad(l,4);return l;}
  private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(TEXT);e.setHintTextColor(MUTED);e.setTextSize(14);e.setPadding(dp(12),dp(10),dp(12),dp(10));e.setBackground(shape(PANEL2,12,0xff39364f));LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(8);e.setLayoutParams(p);return e;}
  private void formDialog(String title,LinearLayout f,Runnable save){new AlertDialog.Builder(this).setTitle(title).setView(f).setNegativeButton("Cancelar",null).setPositiveButton("Adicionar",(d,w)->save.run()).show();}
@@ -215,9 +256,27 @@ public class MainActivity extends Activity {
  private void assetDialogMatching(String title,String[] extensions,java.util.function.Consumer<String> done){
   ArrayList<String> matches=new ArrayList<>();
   for(String a:assets){String lower=a.toLowerCase(Locale.ROOT);for(String ext:extensions)if(lower.endsWith(ext)){matches.add(a);break;}}
-  if(matches.isEmpty()){new AlertDialog.Builder(this).setTitle(title).setMessage("Não há arquivo compatível em Assets. Importe a imagem primeiro.").setPositiveButton("Abrir Assets",(d,w)->{tab=1;showScreen();}).setNegativeButton("Cancelar",null).show();return;}
-  String[] items=matches.toArray(new String[0]);
-  new AlertDialog.Builder(this).setTitle(title).setItems(items,(d,w)->done.accept(items[w])).show();
+  if(matches.isEmpty()){new AlertDialog.Builder(this).setTitle(title).setMessage("Não há arquivo compatível em Assets. Importe o arquivo primeiro.").setPositiveButton("Abrir Assets",(d,w)->{tab=1;showScreen();}).setNegativeButton("Cancelar",null).show();return;}
+  boolean images=false;for(String ext:extensions)if(ext.equals(".png")||ext.equals(".jpg")||ext.equals(".jpeg")||ext.equals(".webp"))images=true;
+  if(!images){String[] items=matches.toArray(new String[0]);new AlertDialog.Builder(this).setTitle(title).setItems(items,(d,w)->done.accept(items[w])).show();return;}
+  GridView grid=new GridView(this);grid.setNumColumns(3);grid.setHorizontalSpacing(dp(8));grid.setVerticalSpacing(dp(8));
+  grid.setPadding(dp(10),dp(8),dp(10),dp(8));grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+  final AlertDialog picker=new AlertDialog.Builder(this).setTitle(title).setView(grid).setNegativeButton("Cancelar",null).create();
+  grid.setAdapter(new BaseAdapter(){
+   @Override public int getCount(){return matches.size();}
+   @Override public Object getItem(int position){return matches.get(position);}
+   @Override public long getItemId(int position){return position;}
+   @Override public View getView(int position,View recycled,android.view.ViewGroup parent){
+    LinearLayout tile=column();tile.setGravity(Gravity.CENTER);tile.setPadding(dp(6),dp(6),dp(6),dp(6));tile.setBackground(shape(PANEL2,10,0xff39364f));
+    android.widget.ImageView preview=new android.widget.ImageView(MainActivity.this);preview.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+    preview.setImageURI(Uri.fromFile(new File(getFilesDir(),"assets/"+matches.get(position))));
+    tile.addView(preview,lp(-1,78));
+    TextView label=text(matches.get(position),10,TEXT,false);label.setGravity(Gravity.CENTER);label.setMaxLines(2);tile.addView(label,lp(-1,34));
+    return tile;
+   }
+  });
+  grid.setOnItemClickListener((parent,view,position,id)->{String chosen=matches.get(position);picker.dismiss();done.accept(chosen);});
+  picker.show();
  }
  private SeekBar addSlider(LinearLayout parent,String label,int max,int progress){
   parent.addView(text(label,12,MUTED,true),lp(-1,26));
@@ -226,14 +285,23 @@ public class MainActivity extends Activity {
  private void showTransformDialog(String title,JSONObject e,int editIndex,float x0,float y0,float z0,float r0){
   LinearLayout f=form();
   SeekBar x=addSlider(f,"Posição X • esquerda ↔ direita",1000,(int)(x0*1000));
+  LinearLayout presets=row();
+  presets.addView(button("ESQUERDA",()->x.setProgress(180),false),new LinearLayout.LayoutParams(0,dp(38),1));
+  presets.addView(button("CENTRO",()->x.setProgress(500),false),new LinearLayout.LayoutParams(0,dp(38),1));
+  presets.addView(button("DIREITA",()->x.setProgress(820),false),new LinearLayout.LayoutParams(0,dp(38),1));
+  f.addView(presets);spaceIn(f,6);
   SeekBar y=addSlider(f,"Posição Y • cima ↔ baixo",1000,(int)(y0*1000));
   SeekBar z=addSlider(f,"Escala • 25% a 200%",175,Math.max(0,Math.min(175,(int)(z0*100)-25)));
   SeekBar r=addSlider(f,"Rotação • -180° a 180°",360,(int)(r0+180));
+  SeekBar opacity=addSlider(f,"Opacidade",100,(int)(floatValue(e,"alpha",1.0f)*100));
+  CheckBox flip=new CheckBox(this);flip.setText("Espelhar horizontalmente (trocar o lado para onde olha)");flip.setTextColor(TEXT);flip.setChecked(e.optBoolean("flip_x",false));f.addView(flip);
   formDialog(title,f,()->{
    put(e,"x",String.format(Locale.US,"%.3f",x.getProgress()/1000.0));
    put(e,"y",String.format(Locale.US,"%.3f",y.getProgress()/1000.0));
    put(e,"zoom",String.format(Locale.US,"%.2f",(z.getProgress()+25)/100.0));
    put(e,"rotation",Integer.toString(r.getProgress()-180));
+   put(e,"alpha",String.format(Locale.US,"%.2f",opacity.getProgress()/100.0));
+   put(e,"flip_x",Boolean.toString(flip.isChecked()));
    if(editIndex<0)addEvent(e);else try{events.put(editIndex,e);saveProject();showScreen();}catch(JSONException ex){toast("Erro ao salvar posição: "+ex.getMessage());}
   });
  }
@@ -251,6 +319,7 @@ public class MainActivity extends Activity {
    final String tag=name;
    assetDialogMatching("Selecionar sprite na biblioteca Assets",new String[]{".png",".jpg",".jpeg",".webp"},file->{
     JSONObject e=new JSONObject();put(e,"type","sprite");put(e,"name",tag);put(e,"file",file);
+    put(e,"alpha","1.0");put(e,"flip_x","false");
     showTransformDialog("Posição e tamanho do personagem",e,-1,0.5f,0.62f,0.9f,0.0f);
    });
   });
@@ -264,10 +333,64 @@ public class MainActivity extends Activity {
     assetDialogMatching("PNG 2/3 — lado direito do corpo",new String[]{".png"},right->
      assetDialogMatching("PNG 3/3 — cabeça (fica por cima)",new String[]{".png"},head->{
       JSONObject e=new JSONObject();put(e,"type","layered");put(e,"name",tag);put(e,"left",left);put(e,"right",right);put(e,"head",head);
+      put(e,"alpha","1.0");put(e,"flip_x","false");
       showTransformDialog("Posição e tamanho do personagem",e,-1,0.5f,0.62f,0.9f,0.0f);
      })
     )
    );
+  });
+ }
+ private String cleanRenpyName(String value){
+  String result=value==null?"":value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]","");
+  if(result.isEmpty())result="personagem";if(Character.isDigit(result.charAt(0)))result="a_"+result;return result;
+ }
+ private String imageExpression(JSONObject character){
+  String tag=cleanRenpyName(character.optString("name"));
+  if(character.optString("type").equals("layered"))return tag;
+  String file=character.optString("file");int dot=file.lastIndexOf('.');String stem=dot>0?file.substring(0,dot):file;
+  return tag+" "+cleanRenpyName(stem);
+ }
+ private void addTransformEvent(){
+  ArrayList<JSONObject> characters=new ArrayList<>();ArrayList<String> labels=new ArrayList<>();
+  for(int i=0;i<events.length();i++){
+   JSONObject e=events.optJSONObject(i);if(e==null)continue;
+   if(e.optString("type").equals("sprite")||e.optString("type").equals("layered")){
+    characters.add(e);labels.add(e.optString("name")+"  •  "+(e.optString("type").equals("layered")?"3 partes":"PNG"));
+   }
+  }
+  if(characters.isEmpty()){toast("Adicione um personagem à cena antes de criar uma transformação.");return;}
+  new AlertDialog.Builder(this).setTitle("Qual personagem transformar?").setItems(labels.toArray(new String[0]),(d,w)->{
+   JSONObject character=characters.get(w);JSONObject transform=new JSONObject();
+   put(transform,"type","transform");put(transform,"target",character.optString("name"));
+   put(transform,"image",imageExpression(character));openTransformActionForm("Transformar "+character.optString("name"),transform,-1);
+  }).show();
+ }
+ private void editTransformEvent(int index){
+  JSONObject e=events.optJSONObject(index);if(e!=null)openTransformActionForm("Editar transformação",e,index);
+ }
+ private void openTransformActionForm(String title,JSONObject e,int editIndex){
+  LinearLayout f=form();String[] positions={"Esquerda","Centro","Direita"};
+  Spinner position=new Spinner(this);position.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,positions));
+  float currentX=floatValue(e,"x",0.5f);position.setSelection(currentX<0.34f?0:currentX>0.66f?2:1);
+  f.addView(text("Novo lado/posição",12,MUTED,true));f.addView(position);
+  SeekBar y=addSlider(f,"Altura",1000,(int)(floatValue(e,"y",0.62f)*1000));
+  SeekBar zoom=addSlider(f,"Tamanho",175,Math.max(0,Math.min(175,(int)(floatValue(e,"zoom",0.9f)*100)-25)));
+  SeekBar rotation=addSlider(f,"Rotação",360,(int)(floatValue(e,"rotation",0)+180));
+  SeekBar opacity=addSlider(f,"Opacidade",100,(int)(floatValue(e,"alpha",1.0f)*100));
+  CheckBox flip=new CheckBox(this);flip.setText("Espelhar horizontalmente");flip.setTextColor(TEXT);flip.setChecked(e.optBoolean("flip_x",false));f.addView(flip);
+  String[] motions={"Instantâneo","Mover suavemente","Dissolver"};
+  Spinner motion=new Spinner(this);motion.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,motions));
+  String oldMotion=e.optString("motion","move");motion.setSelection(oldMotion.equals("none")?0:oldMotion.equals("dissolve")?2:1);
+  f.addView(text("Animação da transformação",12,MUTED,true));f.addView(motion);
+  editFormDialog(title,f,()->{
+   double[] xs={0.18,0.5,0.82};put(e,"x",String.format(Locale.US,"%.3f",xs[position.getSelectedItemPosition()]));
+   put(e,"y",String.format(Locale.US,"%.3f",y.getProgress()/1000.0));
+   put(e,"zoom",String.format(Locale.US,"%.2f",(zoom.getProgress()+25)/100.0));
+   put(e,"rotation",Integer.toString(rotation.getProgress()-180));
+   put(e,"alpha",String.format(Locale.US,"%.2f",opacity.getProgress()/100.0));
+   put(e,"flip_x",Boolean.toString(flip.isChecked()));
+   put(e,"motion",motion.getSelectedItemPosition()==0?"none":motion.getSelectedItemPosition()==1?"move":"dissolve");
+   if(editIndex<0)addEvent(e);else saveEditedEvent(editIndex,e);
   });
  }
  private void addIf(){
@@ -288,8 +411,8 @@ public class MainActivity extends Activity {
  private void addHide(){LinearLayout f=form();EditText x=field("Identificador do personagem");f.addView(x);formDialog("Ocultar personagem",f,()->{JSONObject e=new JSONObject();put(e,"type","hide");put(e,"name",x.getText().toString());addEvent(e);});}
  private void addSimple(String t){JSONObject e=new JSONObject();put(e,"type",t);addEvent(e);}
  private void characterEditor(){
-  heading("Personagens","Um PNG ou composição de três PNGs transparentes: lado esquerdo, lado direito e cabeça.");
-  content.addView(button("＋ Personagem Doki-Doki (3 PNGs)",this::addLayered,true),lp(-1,48));space(8);
+  heading("Personagens","Monte o sprite a partir dos PNGs importados. As duas partes do corpo ficam atrás; a cabeça é desenhada por cima.");
+  content.addView(button("＋ Montar personagem • 3 PNGs",this::addLayered,true),lp(-1,48));space(8);
   content.addView(button("＋ Personagem com um PNG",this::addSprite,false),lp(-1,46));space(14);
   for(int i=0;i<events.length();i++){
    final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;
@@ -372,8 +495,8 @@ public class MainActivity extends Activity {
    while(cursor[0]<events.length()){
     JSONObject ev=events.optJSONObject(cursor[0]++);if(ev==null)continue;String type=ev.optString("type");
     if(type.equals("background")){playfield.removeAllViews();playfield.setBackgroundColor(0xff28243a);characters[0]=new FrameLayout(this);playfield.addView(characters[0],new FrameLayout.LayoutParams(-1,-1));addImage(playfield,ev.optString("file"),floatValue(ev,"x",0.5f),floatValue(ev,"y",0.5f),floatValue(ev,"zoom",1),floatValue(ev,"rotation",0));playfield.bringChildToFront(characters[0]);}
-    else if(type.equals("sprite")){characters[0].removeAllViews();addImage(characters[0],ev.optString("file"),floatValue(ev,"x",0.5f),floatValue(ev,"y",0.62f),floatValue(ev,"zoom",0.9f),floatValue(ev,"rotation",0));}
-    else if(type.equals("layered")){characters[0].removeAllViews();float x=floatValue(ev,"x",0.5f),y=floatValue(ev,"y",0.62f),z=floatValue(ev,"zoom",0.9f),r=floatValue(ev,"rotation",0);addImage(characters[0],ev.optString("left"),x,y,z,r);addImage(characters[0],ev.optString("right"),x,y,z,r);addImage(characters[0],ev.optString("head"),x,y,z,r);}
+    else if(type.equals("sprite")){characters[0].removeAllViews();addImage(characters[0],ev.optString("file"),floatValue(ev,"x",0.5f),floatValue(ev,"y",0.62f),floatValue(ev,"zoom",0.9f),floatValue(ev,"rotation",0),ev.optBoolean("flip_x",false),floatValue(ev,"alpha",1.0f));}
+    else if(type.equals("layered")){characters[0].removeAllViews();float x=floatValue(ev,"x",0.5f),y=floatValue(ev,"y",0.62f),z=floatValue(ev,"zoom",0.9f),r=floatValue(ev,"rotation",0),a=floatValue(ev,"alpha",1.0f);boolean flip=ev.optBoolean("flip_x",false);addImage(characters[0],ev.optString("left"),x,y,z,r,flip,a);addImage(characters[0],ev.optString("right"),x,y,z,r,flip,a);addImage(characters[0],ev.optString("head"),x,y,z,r,flip,a);}
     else if(type.equals("hide"))characters[0].removeAllViews();
     else if(type.equals("set"))vars.put(ev.optString("variable"),ev.optString("value"));
     else if(type.equals("if")){String actual=vars.get(ev.optString("variable"));String expected=ev.optString("value").replace("\\\"","");if(actual==null||!actual.equalsIgnoreCase(expected))cursor[0]=findConditionalBoundary(cursor[0],true);}
@@ -486,8 +609,9 @@ public class MainActivity extends Activity {
     switch(t){
      case"say":v.add(e.optString("speaker"));v.add(e.optString("text"));break;
      case"background":v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.5"));v.add(e.optString("zoom","1.0"));v.add(e.optString("rotation","0"));break;
-     case"sprite":v.add(e.optString("name"));v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));break;
-     case"layered":v.add(e.optString("name"));v.add(e.optString("left"));v.add(e.optString("right"));v.add(e.optString("head"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));break;
+     case"sprite":v.add(e.optString("name"));v.add(e.optString("file"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));v.add(e.optString("flip_x","false"));v.add(e.optString("alpha","1.0"));break;
+     case"layered":v.add(e.optString("name"));v.add(e.optString("left"));v.add(e.optString("right"));v.add(e.optString("head"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));v.add(e.optString("flip_x","false"));v.add(e.optString("alpha","1.0"));break;
+     case"transform":v.add(e.optString("target"));v.add(e.optString("image"));v.add(e.optString("x","0.5"));v.add(e.optString("y","0.62"));v.add(e.optString("zoom","0.9"));v.add(e.optString("rotation","0"));v.add(e.optString("flip_x","false"));v.add(e.optString("alpha","1.0"));v.add(e.optString("motion","move"));break;
      case"if":v.add(e.optString("variable"));v.add(e.optString("operator","=="));v.add(e.optString("value"));break;
      case"set":v.add(e.optString("variable"));v.add(e.optString("value"));break;
      case"choice":v.add(e.optString("a"));v.add(e.optString("b"));break;
