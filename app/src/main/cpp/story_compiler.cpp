@@ -77,11 +77,14 @@ static double number(const std::string& value, double fallback, double low, doub
 }
 
 static std::string transform(const std::string& x, const std::string& y,
-                             const std::string& zoom, const std::string& rotation) {
+                             const std::string& zoom, const std::string& rotation,
+                             const std::string& alpha = "1.0", bool flip_x = false) {
     std::ostringstream out;
     out << "Transform(xalign=" << number(x, 0.5, 0.0, 1.0)
         << ", yalign=" << number(y, 0.62, 0.0, 1.0)
         << ", zoom=" << number(zoom, 0.9, 0.05, 4.0)
+        << ", xzoom=" << (flip_x ? -1.0 : 1.0)
+        << ", alpha=" << number(alpha, 1.0, 0.0, 1.0)
         << ", rotate=" << number(rotation, 0.0, -360.0, 360.0) << ")";
     return out.str();
 }
@@ -205,11 +208,21 @@ Java_studio_renpy_mobile_NativeBridge_compileStory(JNIEnv* env, jclass, jstring 
             const std::string tag = clean(get(event, 0));
             const std::string imageName = tag + " " + stem(get(event, 1));
             output += pad() + "show " + imageName + " at " +
-                transform(get(event, 2), get(event, 3), get(event, 4), get(event, 5)) + "\n";
+                transform(get(event, 2), get(event, 3), get(event, 4), get(event, 5),
+                          get(event, 7), get(event, 6) == "true") + "\n";
         } else if (type == "layered") {
             const std::string tag = clean(get(event, 0));
             output += pad() + "show " + tag + " at " +
-                transform(get(event, 4), get(event, 5), get(event, 6), get(event, 7)) + "\n";
+                transform(get(event, 4), get(event, 5), get(event, 6), get(event, 7),
+                          get(event, 9), get(event, 8) == "true") + "\n";
+        } else if (type == "transform") {
+            const std::string imageName = get(event, 1);
+            output += pad() + "show " + imageName + " at " +
+                transform(get(event, 2), get(event, 3), get(event, 4), get(event, 5),
+                          get(event, 7), get(event, 6) == "true") + "\n";
+            const std::string motion = get(event, 8);
+            if (motion == "move") output += pad() + "with move\n";
+            else if (motion == "dissolve") output += pad() + "with dissolve\n";
         } else if (type == "choice") {
             output += pad() + "menu:\n";
             output += pad() + "    \"" + quote(get(event, 0)) + "\":\n";
