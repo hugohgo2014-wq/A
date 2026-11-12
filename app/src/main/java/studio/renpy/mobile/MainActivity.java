@@ -354,7 +354,8 @@ public class MainActivity extends Activity {
  private void appearanceScreen(){
   heading("Aparência do jogo","Personalize a tela de título, botões, caixa de diálogo, cores e fontes.");
   content.addView(button("Imagem de fundo da tela de título",()->assetDialogMatching("Fundo da tela de título",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("title_bg",v)),true),lp(-1,46));space(7);
-  content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (normal)",()->assetDialogMatching("Fundo normal do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_idle_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (pressionado)",()->assetDialogMatching("Fundo ativo do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_hover_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Imagem dos botões (normal)",()->assetDialogMatching("Fundo normal do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_idle_bg",v)),false),lp(-1,46));space(7);\n  content.addView(button("Imagem dos botões (pressionado)",()->assetDialogMatching("Fundo ativo do botão",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("button_hover_bg",v)),false),lp(-1,46));space(7);
   content.addView(button("Fonte personalizada (.ttf / .otf)",()->assetDialogMatching("Escolher fonte",new String[]{".ttf",".otf"},v->setGui("font",v)),false),lp(-1,46));space(12);
   LinearLayout current=column();current.addView(text("RECURSOS SELECIONADOS",11,MINT,true));
   current.addView(text("Tela de título: "+guiSettings.optString("title_bg","padrão"),12,TEXT,false));
@@ -381,37 +382,37 @@ public class MainActivity extends Activity {
   return "\"" + value.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","") + "\"";
  }
  private String buildGuiScript(){
-  StringBuilder out=new StringBuilder("# Generated GUI settings.\\ninit 999 python:\\n");
+  StringBuilder out=new StringBuilder("# Generated GUI settings.\ninit 999 python:\n");
   String font=guiSettings.optString("font","");if(!font.isEmpty()){
-   out.append("    gui.text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
-   out.append("    gui.interface_text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
-   out.append("    gui.button_text_font = ").append(pyQuote("fonts/"+font)).append("\\n");
+   out.append("    gui.text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+   out.append("    gui.interface_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+   out.append("    gui.button_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
   }
-  out.append("    gui.text_color = ").append(pyQuote(guiSettings.optString("text_color","#FFFFFF"))).append("\\n");
-  out.append("    gui.accent_color = ").append(pyQuote(guiSettings.optString("accent_color","#C8A2FF"))).append("\\n");
-  out.append("    gui.idle_color = ").append(pyQuote(guiSettings.optString("idle_color","#8A8299"))).append("\\n");
-  out.append("    gui.hover_color = ").append(pyQuote(guiSettings.optString("hover_color","#FFFFFF"))).append("\\n");
-  out.append("    gui.button_text_idle_color = gui.idle_color\\n");
-  out.append("    gui.button_text_hover_color = gui.hover_color\\n");
-  out.append("    gui.choice_button_text_idle_color = gui.idle_color\\n");
-  out.append("    gui.choice_button_text_hover_color = gui.hover_color\\n");
-  out.append("    gui.text_size = ").append(guiSettings.optInt("text_size",30)).append("\\n");
-  out.append("    gui.name_text_size = ").append(guiSettings.optInt("text_size",30)+6).append("\\n");
-  out.append("    gui.textbox_height = ").append(guiSettings.optInt("textbox_height",230)).append("\\n");
+  out.append("    gui.text_color = ").append(pyQuote(guiSettings.optString("text_color","#FFFFFF"))).append("\n");
+  out.append("    gui.accent_color = ").append(pyQuote(guiSettings.optString("accent_color","#C8A2FF"))).append("\n");
+  out.append("    gui.idle_color = ").append(pyQuote(guiSettings.optString("idle_color","#8A8299"))).append("\n");
+  out.append("    gui.hover_color = ").append(pyQuote(guiSettings.optString("hover_color","#FFFFFF"))).append("\n");
+  out.append("    gui.button_text_idle_color = gui.idle_color\n");
+  out.append("    gui.button_text_hover_color = gui.hover_color\n");
+  out.append("    gui.choice_button_text_idle_color = gui.idle_color\n");
+  out.append("    gui.choice_button_text_hover_color = gui.hover_color\n");
+  out.append("    gui.text_size = ").append(guiSettings.optInt("text_size",30)).append("\n");
+  out.append("    gui.name_text_size = ").append(guiSettings.optInt("text_size",30)+6).append("\n");
+  out.append("    gui.textbox_height = ").append(guiSettings.optInt("textbox_height",230)).append("\n");
   return out.toString();
  }
  
  private String buildRpaScript(){
-  return "# Ren'Py archive configuration. Run Build Distributions in the Ren'Py Launcher to create .rpa files.\\n"+
-   "init python:\\n"+
-   "    build.archive(\\"studio_gui\\", \\"all\\")\\n"+
-   "    build.classify(\\"game/gui/**\\", \\"studio_gui\\")\\n"+
-   "    build.archive(\\"studio_images\\", \\"all\\")\\n"+
-   "    build.classify(\\"game/images/**\\", \\"studio_images\\")\\n"+
-   "    build.archive(\\"studio_audio\\", \\"all\\")\\n"+
-   "    build.classify(\\"game/audio/**\\", \\"studio_audio\\")\\n"+
-   "    build.archive(\\"studio_fonts\\", \\"all\\")\\n"+
-   "    build.classify(\\"game/fonts/**\\", \\"studio_fonts\\")\\n";
+  return "# Ren'Py archive configuration. Run Build Distributions in the Ren'Py Launcher to create .rpa files.\n"+
+   "init python:\n"+
+   "    build.archive('studio_gui', 'all')\n"+
+   "    build.classify('game/gui/**', 'studio_gui')\n"+
+   "    build.archive('studio_images', 'all')\n"+
+   "    build.classify('game/images/**', 'studio_images')\n"+
+   "    build.archive('studio_audio', 'all')\n"+
+   "    build.classify('game/audio/**', 'studio_audio')\n"+
+   "    build.archive('studio_fonts', 'all')\n"+
+   "    build.classify('game/fonts/**', 'studio_fonts')\n";
  }
  
  private String buildRpycShell(){
@@ -460,7 +461,9 @@ public class MainActivity extends Activity {
      case"hide":v.add(e.optString("name"));break;
      case"label":case"jump":case"call":v.add(e.optString("target"));break;
     }
-    input.append(t);for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));input.append("\\n");
+    input.append(t);
+    for(String value:v)input.append("|").append(Base64.getEncoder().encodeToString(value.getBytes("UTF-8")));
+    input.append("\n");
    }
    String script=NativeBridge.compileStory(input.toString());
    OutputStream rawOut=getContentResolver().openOutputStream(target);if(rawOut==null)throw new IOException("Não foi possível criar o ZIP.");
@@ -469,7 +472,7 @@ public class MainActivity extends Activity {
     putZip(z,"zz_studio_gui.rpy",buildGuiScript());
     if(includeRpaConfig)putZip(z,"zz_studio_archives.rpy",buildRpaScript());
     if(includeRpycHelper){putZip(z,"COMPILE_RPYC.sh",buildRpycShell());putZip(z,"COMPILE_RPYC.bat",buildRpycBat());}
-    putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\\nExtract the contents of this ZIP into an existing Ren'Py project's game/ directory.\\nCustom title and dialogue images are in gui/.\\nFonts are in fonts/.\\nUse the Ren'Py Launcher Build Distributions option to create .rpa archives.\\nRun COMPILE_RPYC.sh or COMPILE_RPYC.bat with a Ren'Py SDK to compile .rpy into .rpyc.\\n");
+    putZip(z,"README_RENPY_STUDIO.txt","Ren'Py Studio Mobile export\nExtract these files into an existing Ren'Py project's game/ directory.\nThe title screen image is gui/main_menu.png; dialogue box is gui/textbox.png.\nButton backgrounds are in gui/button/; fonts are in fonts/.\nUse Build Distributions in the Ren'Py Launcher to create .rpa archives.\nRun COMPILE_RPYC.sh or COMPILE_RPYC.bat with a Ren'Py SDK to compile .rpy into .rpyc.\n");
     HashSet<String> guiAssets=new HashSet<>();
     String title=guiSettings.optString("title_bg",""),dialogue=guiSettings.optString("dialogue_bg","");
     String idle=guiSettings.optString("button_idle_bg",""),hover=guiSettings.optString("button_hover_bg","");
