@@ -92,8 +92,8 @@ public class MainActivity extends Activity {
     JSONObject ev=events.optJSONObject(cursor[0]++);if(ev==null)continue;String type=ev.optString("type");
     if(type.equals("background")){playfield.removeAllViews();playfield.setBackgroundColor(0xff28243a);characters[0]=new FrameLayout(this);playfield.addView(characters[0],new FrameLayout.LayoutParams(-1,-1));addImage(playfield,ev.optString("file"));playfield.bringChildToFront(characters[0]);}
     else if(type.equals("sprite")){characters[0].removeAllViews();addImage(characters[0],ev.optString("file"));}
-    else if(type.equals("layered")){characters.removeAllViews();addImage(characters,ev.optString("body"));addImage(characters,ev.optString("eyes"));addImage(characters,ev.optString("mouth"));}
-    else if(type.equals("hide"))characters.removeAllViews();
+    else if(type.equals("layered")){characters[0].removeAllViews();addImage(characters[0],ev.optString("body"));addImage(characters[0],ev.optString("eyes"));addImage(characters[0],ev.optString("mouth"));}
+    else if(type.equals("hide"))characters[0].removeAllViews();
     else if(type.equals("set"))vars.put(ev.optString("variable"),ev.optString("value"));
     else if(type.equals("if")){String actual=vars.get(ev.optString("variable"));String expected=ev.optString("value").replace("\"","");if(actual==null||!actual.equalsIgnoreCase(expected)){int depth=1;while(cursor[0]<events.length()&&depth>0){String t=events.optJSONObject(cursor[0]++)==null?"":events.optJSONObject(cursor[0]-1).optString("type");if(t.equals("if"))depth++;else if(t.equals("endif"))depth--;}}}
     else if(type.equals("say")){who.setText(ev.optString("speaker").isEmpty()?"NARRADOR":ev.optString("speaker").toUpperCase(Locale.ROOT));line.setText(ev.optString("text"));next.setOnClickListener(v->advance[0].run());return;}
