@@ -18,7 +18,8 @@ public class MainActivity extends Activity {
  private final int BG=0xff101018,PANEL=0xff1b1a29,PANEL2=0xff242236,PURPLE=0xffa995ff,MINT=0xff74dfc2,TEXT=0xfff4f1ff,MUTED=0xffa5a1b7;
  private LinearLayout root,content,toolbar,bottom; private FrameLayout stage;
  private JSONArray events=new JSONArray(); private ArrayList<String> assets=new ArrayList<>(); private JSONObject guiSettings=new JSONObject(); private boolean includeRpaConfig=true,includeRpycHelper=true; private PluginManager pluginManager;
- private String projectName="Minha Visual Novel",projectId="minha_visual_novel"; private int tab=0,subtab=0;
+ private String projectName="Minha Visual Novel",projectId="minha_visual_novel",selectedCharacterName=""; private int tab=0,subtab=0;
+ private JSONObject dragState; private float dragDownX,dragDownY,dragBaseX,dragBaseY;
  private final String[] tabs={"Studio","Assets","Aparência","Preview","Plugins","Exportar"}; private final String[] subs={"Cena","Eventos","Personagens"};
  private static final int PICK_ASSET=41,EXPORT_ZIP=42,PICK_PLUGIN=43;
 
@@ -40,7 +41,20 @@ public class MainActivity extends Activity {
  private void spaceIn(LinearLayout l,int h){View v=new View(this);l.addView(v,lp(1,h));}
  private void card(View v){v.setBackground(shape(PANEL,18,0xff302d43));pad(v,14);LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(10);content.addView(v,p);}
  private void studio(){heading("Seu estúdio","Crie cenas, personagens e lógica sem escrever código.");LinearLayout chips=row();for(int i=0;i<3;i++){final int k=i;TextView b=button(subs[i],()->{subtab=k;showScreen();},subtab==i);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(42),1);p.setMargins(0,0,dp(6),0);chips.addView(b,p);}content.addView(chips);space(14);if(subtab==0)sceneEditor();else if(subtab==1)eventEditor();else characterEditor();}
- private void sceneEditor(){content.addView(text("PRÉVIA DA CENA",11,MUTED,true));space(8);stage=new FrameLayout(this);stage.setBackground(shape(0xff29253b,18,0xff39344f));stage.setClipToOutline(true);LinearLayout.LayoutParams sp=lp(-1,245);sp.bottomMargin=dp(12);content.addView(stage,sp);renderStage(false);LinearLayout a=row();a.addView(button("＋ Fundo",()->addBackground(),true),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("＋ Diálogo",()->addDialogue(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(10);a=row();a.addView(button("＋ Personagem",()->addSprite(),false),new LinearLayout.LayoutParams(0,dp(46),1));a.addView(button("Camadas PNG",()->addLayered(),false),new LinearLayout.LayoutParams(0,dp(46),1));content.addView(a);space(16);content.addView(text("Importe imagens em Assets e use o nome do arquivo ao criar fundos e personagens.",12,MUTED,false));}
+ private void sceneEditor(){
+  content.addView(text("PRÉVIA DA CENA",11,MUTED,true));space(8);
+  stage=new FrameLayout(this);stage.setBackground(shape(0xff29253b,18,0xff39344f));stage.setClipToOutline(true);
+  LinearLayout.LayoutParams sp=lp(-1,260);sp.bottomMargin=dp(10);content.addView(stage,sp);
+  renderStage(false);enableStageDrag();
+  String selected=selectedCharacterName.isEmpty()?"Nenhum personagem selecionado":("Selecionado: "+selectedCharacterName+" • arraste no quadro para reposicionar");
+  content.addView(text(selected,11,MINT,false),lp(-1,24));
+  LinearLayout a=row();a.addView(button("＋ Fundo",()->addBackground(),true),new LinearLayout.LayoutParams(0,dp(44),1));
+  a.addView(button("＋ Diálogo",()->addDialogue(),false),new LinearLayout.LayoutParams(0,dp(44),1));content.addView(a);space(8);
+  a=row();a.addView(button("＋ Personagem",()->addSprite(),false),new LinearLayout.LayoutParams(0,dp(44),1));
+  a.addView(button("＋ 3 PNGs",()->addLayered(),false),new LinearLayout.LayoutParams(0,dp(44),1));content.addView(a);space(10);
+  content.addView(button("＋ Transformar personagem",this::addTransformEvent,false),lp(-1,42));
+  content.addView(text("Escolha um personagem na aba Personagens para selecioná-lo. Depois arraste no quadro; posição e alinhamento são salvos no projeto.",11,MUTED,false));
+ }
  private void addImage(FrameLayout parent,String file){addImage(parent,file,0.5f,0.5f,1.0f,0.0f);}
  private void addImage(FrameLayout parent,String file,float x,float y,float zoom,float rotation){
   addImage(parent,file,x,y,zoom,rotation,false,1.0f);
@@ -53,6 +67,49 @@ public class MainActivity extends Activity {
    im.setScaleX(zoom*(flipX?-1.0f:1.0f));im.setScaleY(zoom);im.setRotation(rotation);im.setAlpha(Math.max(0.0f,Math.min(1.0f,alpha)));
    parent.post(()->{im.setTranslationX((x-0.5f)*parent.getWidth());im.setTranslationY((y-0.5f)*parent.getHeight());});
   }catch(Exception ignored){}
+ }
+ private void addCharacterImage(FrameLayout parent,String file,float x,float y,float zoom,float rotation,boolean flipX,float alpha,String tag){
+  int before=parent.getChildCount();addImage(parent,file,x,y,zoom,rotation,flipX,alpha);
+  if(parent.getChildCount()>before)parent.getChildAt(parent.getChildCount()-1).setTag(tag);
+ }
+ private JSONObject findLatestCharacterState(String name){
+  JSONObject result=null;
+  for(int i=0;i<events.length();i++){
+   JSONObject e=events.optJSONObject(i);if(e==null)continue;String type=e.optString("type");
+   if((type.equals("sprite")||type.equals("layered"))&&e.optString("name").equals(name))result=e;
+   else if(type.equals("transform")&&e.optString("target").equals(name))result=e;
+  }
+  return result;
+ }
+ private void enableStageDrag(){
+  if(stage==null)return;
+  stage.setOnTouchListener((view,event)->{
+   if(selectedCharacterName.isEmpty())return false;
+   if(event.getAction()==android.view.MotionEvent.ACTION_DOWN){
+    dragState=findLatestCharacterState(selectedCharacterName);if(dragState==null)return false;
+    dragDownX=event.getX();dragDownY=event.getY();
+    dragBaseX=floatValue(dragState,"x",0.5f);dragBaseY=floatValue(dragState,"y",0.62f);
+    boolean found=false;for(int i=0;i<stage.getChildCount();i++){View child=stage.getChildAt(i);if(selectedCharacterName.equals(child.getTag()))found=true;}
+    return found;
+   }
+   if(dragState==null)return false;
+   if(event.getAction()==android.view.MotionEvent.ACTION_MOVE||event.getAction()==android.view.MotionEvent.ACTION_UP){
+    float nx=Math.max(0.0f,Math.min(1.0f,dragBaseX+(event.getX()-dragDownX)/Math.max(1,stage.getWidth())));
+    float ny=Math.max(0.0f,Math.min(1.0f,dragBaseY+(event.getY()-dragDownY)/Math.max(1,stage.getHeight())));
+    for(int i=0;i<stage.getChildCount();i++){
+     View child=stage.getChildAt(i);if(selectedCharacterName.equals(child.getTag())){
+      child.setTranslationX((nx-0.5f)*stage.getWidth());child.setTranslationY((ny-0.5f)*stage.getHeight());
+     }
+    }
+    if(event.getAction()==android.view.MotionEvent.ACTION_UP){
+     put(dragState,"x",String.format(Locale.US,"%.3f",nx));put(dragState,"y",String.format(Locale.US,"%.3f",ny));
+     saveProject();dragState=null;
+    }
+    return true;
+   }
+   if(event.getAction()==android.view.MotionEvent.ACTION_CANCEL){dragState=null;return true;}
+   return true;
+  });
  }
  private void renderStage(boolean dialogue){
   if(stage==null)return;stage.removeAllViews();JSONObject background=null;LinkedHashMap<String,JSONObject> active=new LinkedHashMap<>();
@@ -77,11 +134,12 @@ public class MainActivity extends Activity {
   for(JSONObject e:active.values()){
    float x=floatValue(e,"x",0.5f),y=floatValue(e,"y",0.62f),z=floatValue(e,"zoom",0.9f),r=floatValue(e,"rotation",0);
    boolean flip=e.optBoolean("flip_x",false);float alpha=floatValue(e,"alpha",1.0f);
-   if(e.optString("type").equals("sprite"))addImage(stage,e.optString("file"),x,y,z,r,flip,alpha);
+   String characterTag=e.optString("name");
+   if(e.optString("type").equals("sprite"))addCharacterImage(stage,e.optString("file"),x,y,z,r,flip,alpha,characterTag);
    else{
-    addImage(stage,e.optString("left"),x,y,z,r,flip,alpha);
-    addImage(stage,e.optString("right"),x,y,z,r,flip,alpha);
-    addImage(stage,e.optString("head"),x,y,z,r,flip,alpha);
+    addCharacterImage(stage,e.optString("left"),x,y,z,r,flip,alpha,characterTag);
+    addCharacterImage(stage,e.optString("right"),x,y,z,r,flip,alpha,characterTag);
+    addCharacterImage(stage,e.optString("head"),x,y,z,r,flip,alpha,characterTag);
    }
   }
   if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}
@@ -433,7 +491,10 @@ public class MainActivity extends Activity {
    String t=e.optString("type");
    if(t.equals("sprite")||t.equals("layered")){
     LinearLayout c=column();c.addView(text(e.optString("name"),16,TEXT,true));c.addView(text(eventDetail(e),12,MUTED,false));
-    c.setOnClickListener(v->editVisualEvent(ix));card(c);
+    LinearLayout controls=row();
+    controls.addView(button("Selecionar no quadro",()->{selectedCharacterName=e.optString("name");tab=0;subtab=0;showScreen();toast("Personagem selecionado. Arraste-o na prévia da cena.");},true),new LinearLayout.LayoutParams(0,dp(40),1));
+    LinearLayout.LayoutParams editParams=new LinearLayout.LayoutParams(0,dp(40),1);editParams.leftMargin=dp(6);
+    controls.addView(button("Editar PNGs / posição",()->editVisualEvent(ix),false),editParams);c.addView(controls);card(c);
    }
   }
  }
