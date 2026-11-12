@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
     else if(type.equals("hide"))characters[0].removeAllViews();
     else if(type.equals("set"))vars.put(ev.optString("variable"),ev.optString("value"));
     else if(type.equals("if")){String actual=vars.get(ev.optString("variable"));String expected=ev.optString("value").replace("\\\"","");if(actual==null||!actual.equalsIgnoreCase(expected))cursor[0]=findConditionalBoundary(cursor[0],true);}
-    else if(type.equals("else")){cursor[0]=findConditionalBoundary(cursor[0],false);}}
+    else if(type.equals("else")){cursor[0]=findConditionalBoundary(cursor[0],false);}
     else if(type.equals("say")){who.setText(ev.optString("speaker").isEmpty()?"NARRADOR":ev.optString("speaker").toUpperCase(Locale.ROOT));line.setText(ev.optString("text"));next.setOnClickListener(v->advance[0].run());return;}
     else if(type.equals("choice")){who.setText("ESCOLHA");line.setText("Escolha uma opção para continuar.");choices.setVisibility(View.VISIBLE);next.setVisibility(View.GONE);TextView a=button(ev.optString("a"),()->{vars.put("choice_result","A");choices.setVisibility(View.GONE);next.setVisibility(View.VISIBLE);next.setOnClickListener(v->advance[0].run());},true);TextView b=button(ev.optString("b"),()->{vars.put("choice_result","B");choices.setVisibility(View.GONE);next.setVisibility(View.VISIBLE);next.setOnClickListener(v->advance[0].run());},false);choices.addView(a,new LinearLayout.LayoutParams(0,dp(44),1));choices.addView(b,new LinearLayout.LayoutParams(0,dp(44),1));return;}
     else if(type.equals("end"))break;
