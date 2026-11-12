@@ -68,7 +68,99 @@ public class MainActivity extends Activity {
   if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}
  }
  
- private void eventEditor(){heading("Folha de eventos","Condições + ações. Os blocos são executados de cima para baixo.");content.addView(button("＋ Adicionar evento",()->eventPicker(),true),lp(-1,48));space(12);if(events.length()==0){LinearLayout empty=column();empty.setGravity(Gravity.CENTER);empty.addView(text("◇",36,PURPLE,true));empty.addView(text("Nenhum evento ainda",16,TEXT,true));empty.addView(text("Adicione diálogos, condições e ações.",12,MUTED,false));card(empty);return;}for(int i=0;i<events.length();i++){final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;LinearLayout block=column(),top=row();top.addView(text(eventLabel(e),13,PURPLE,true),new LinearLayout.LayoutParams(0,dp(28),1));TextView more=text("⋮",22,MUTED,true);more.setGravity(Gravity.CENTER);more.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Mover para cima","Mover para baixo","Excluir"},(d,w)->{if(w==2)removeEvent(ix);else moveEvent(ix,w==0?-1:1);}).show());top.addView(more);block.addView(top);block.addView(text(eventDetail(e),13,TEXT,false));card(block);}content.addView(text("EVENTOS: "+events.length()+"  •  SALVAMENTO AUTOMÁTICO",10,MUTED,true));}
+ private void eventEditor(){
+  heading("Folha de eventos","Adicione blocos visuais para diálogos, ações, condições e fluxo da história.");
+  LinearLayout add=row();
+  add.addView(button("＋ Ação",()->eventPicker(),true),new LinearLayout.LayoutParams(0,dp(44),1));
+  add.addView(button("◇ Condição",()->addIf(),false),new LinearLayout.LayoutParams(0,dp(44),1));
+  addViewSpace(add,6);
+  content.addView(add);
+  space(8);
+  content.addView(button("＋ Rótulo / Pular / Chamar / Retornar",()->flowPicker(),false),lp(-1,42));
+  space(12);
+  if(events.length()==0){
+   LinearLayout empty=column();empty.setGravity(Gravity.CENTER);
+   empty.addView(text("◇",36,PURPLE,true));empty.addView(text("Folha vazia",16,TEXT,true));
+   empty.addView(text("Comece adicionando uma ação ou condição.",12,MUTED,false));card(empty);return;
+  }
+  for(int i=0;i<events.length();i++){
+   final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;
+   String type=e.optString("type");
+   int railColor=(type.equals("if")||type.equals("else")||type.equals("endif"))?MINT:
+      (type.equals("say")||type.equals("choice"))?PURPLE:0xff68a9ed;
+   LinearLayout block=row(),body=column(),top=row();
+   View rail=new View(this);rail.setBackground(shape(railColor,8,0));block.addView(rail,lp(5,60));
+   LinearLayout.LayoutParams bodyParams=new LinearLayout.LayoutParams(0,-2,1);bodyParams.leftMargin=dp(10);block.addView(body,bodyParams);
+   top.addView(text(String.format(Locale.ROOT,"%02d  %s",i+1,eventLabel(e)),12,railColor,true),new LinearLayout.LayoutParams(0,dp(28),1));
+   TextView more=text("⋮",22,MUTED,true);more.setGravity(Gravity.CENTER);
+   more.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Editar bloco","Mover para cima","Mover para baixo","Duplicar","Excluir"},(d,w)->{
+    if(w==0)editEvent(ix);else if(w==1)moveEvent(ix,-1);else if(w==2)moveEvent(ix,1);else if(w==3)duplicateEvent(ix);else removeEvent(ix);
+   }).show());
+   top.addView(more);body.addView(top);body.addView(text(eventDetail(e),13,TEXT,false));
+   block.setOnClickListener(v->editEvent(ix));card(block);
+  }
+  content.addView(text("BLOCOS: "+events.length()+"  •  SALVAMENTO AUTOMÁTICO",10,MUTED,true));
+ }
+ private void addViewSpace(LinearLayout parent,int width){View v=new View(this);parent.addView(v,lp(width,1));}
+ private void duplicateEvent(int index){
+  JSONObject e=events.optJSONObject(index);if(e==null)return;
+  try{JSONArray n=new JSONArray();for(int i=0;i<events.length();i++){n.put(events.opt(i));if(i==index)n.put(new JSONObject(e.toString()));}events=n;saveProject();showScreen();}
+  catch(Exception ex){toast("Falha ao duplicar bloco: "+ex.getMessage());}
+ }
+ private void saveEditedEvent(int index,JSONObject e){
+  try{events.put(index,e);saveProject();showScreen();}
+  catch(JSONException ex){toast("Não foi possível salvar o bloco: "+ex.getMessage());}
+ }
+ private void editFormDialog(String title,LinearLayout f,Runnable save){
+  new AlertDialog.Builder(this).setTitle(title).setView(f).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",(d,w)->save.run()).show();
+ }
+ private void editEvent(int index){
+  JSONObject e=events.optJSONObject(index);if(e==null)return;String type=e.optString("type");
+  if(type.equals("sprite")||type.equals("layered")||type.equals("background")){editVisualEvent(index);return;}
+  if(type.equals("say")){
+   LinearLayout f=form();EditText speaker=field("Personagem / narrador"),line=field("Texto do diálogo");
+   speaker.setText(e.optString("speaker"));line.setText(e.optString("text"));line.setMinLines(2);f.addView(speaker);f.addView(line);
+   editFormDialog("Editar diálogo",f,()->{put(e,"speaker",speaker.getText().toString());put(e,"text",line.getText().toString());saveEditedEvent(index,e);});
+  }else if(type.equals("if")){
+   LinearLayout f=form();EditText variable=field("Variável");variable.setText(e.optString("variable"));
+   EditText value=field("Valor esperado");value.setText(e.optString("value"));
+   String[] ops={"==","!=",">","<",">=","<="};Spinner op=new Spinner(this);
+   ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,ops);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);op.setAdapter(adapter);
+   for(int i=0;i<ops.length;i++)if(ops[i].equals(e.optString("operator","==")))op.setSelection(i);
+   f.addView(variable);f.addView(op);f.addView(value);
+   editFormDialog("Editar condição",f,()->{put(e,"variable",variable.getText().toString());put(e,"operator",ops[op.getSelectedItemPosition()]);put(e,"value",value.getText().toString());saveEditedEvent(index,e);});
+  }else if(type.equals("set")){
+   LinearLayout f=form();EditText variable=field("Variável"),value=field("Valor");variable.setText(e.optString("variable"));value.setText(e.optString("value"));f.addView(variable);f.addView(value);
+   editFormDialog("Editar variável",f,()->{put(e,"variable",variable.getText().toString());put(e,"value",value.getText().toString());saveEditedEvent(index,e);});
+  }else if(type.equals("choice")){
+   LinearLayout f=form();EditText a=field("Opção A"),b=field("Opção B");a.setText(e.optString("a"));b.setText(e.optString("b"));f.addView(a);f.addView(b);
+   editFormDialog("Editar escolha",f,()->{put(e,"a",a.getText().toString());put(e,"b",b.getText().toString());saveEditedEvent(index,e);});
+  }else if(type.equals("music")||type.equals("sound")){
+   assetDialogMatching("Substituir arquivo de áudio",new String[]{".ogg",".mp3",".wav"},file->{put(e,"file",file);saveEditedEvent(index,e);});
+  }else if(type.equals("transition")){
+   String[] effects={"dissolve","fade","pixellate","move"};new AlertDialog.Builder(this).setTitle("Transição").setItems(effects,(d,w)->{put(e,"effect",effects[w]);saveEditedEvent(index,e);}).show();
+  }else if(type.equals("pause")){
+   LinearLayout f=form();EditText value=field("Duração em segundos");value.setText(e.optString("value","1.0"));f.addView(value);
+   editFormDialog("Editar espera",f,()->{put(e,"value",value.getText().toString());saveEditedEvent(index,e);});
+  }else if(type.equals("hide")||type.equals("label")||type.equals("jump")||type.equals("call")){
+   LinearLayout f=form();EditText target=field(type.equals("hide")?"Nome do personagem": "Nome do rótulo");target.setText(type.equals("hide")?e.optString("name"):e.optString("target"));f.addView(target);
+   editFormDialog("Editar "+eventLabel(e),f,()->{put(e,type.equals("hide")?"name":"target",target.getText().toString());saveEditedEvent(index,e);});
+  }else{
+   toast("Este bloco não possui parâmetros editáveis.");
+  }
+ }
+ private void flowPicker(){
+  String[] labels={"Criar rótulo (label)","Pular para rótulo (jump)","Chamar rótulo (call)","Retornar"};
+  new AlertDialog.Builder(this).setTitle("Controle de fluxo").setItems(labels,(d,w)->{
+   if(w==3)addSimple("return");else addFlowEvent(w==0?"label":w==1?"jump":"call");
+  }).show();
+ }
+ private void addFlowEvent(String type){
+  LinearLayout f=form();EditText name=field("Nome do rótulo (ex.: capitulo_2)");f.addView(name);
+  formDialog(type.equals("label")?"Novo rótulo":type.equals("jump")?"Pular para rótulo":"Chamar rótulo",f,()->{
+   JSONObject e=new JSONObject();put(e,"type",type);put(e,"target",name.getText().toString());addEvent(e);
+  });
+ }
  private String eventLabel(JSONObject e){
   switch(e.optString("type")){
    case"say":return"DIÁLOGO";case"background":return"FUNDO";case"sprite":return"PERSONAGEM";case"layered":return"PERSONAGEM 3 PARTES";
@@ -93,7 +185,17 @@ public class MainActivity extends Activity {
  private void removeEvent(int i){JSONArray n=new JSONArray();for(int j=0;j<events.length();j++)if(j!=i)n.put(events.opt(j));events=n;saveProject();showScreen();}
  private void moveEvent(int i,int d){int j=i+d;if(j<0||j>=events.length())return;Object a=events.opt(i),b=events.opt(j);try{events.put(j,a);events.put(i,b);saveProject();showScreen();}catch(JSONException ex){Toast.makeText(this,"Não foi possível mover o evento: "+ex.getMessage(),Toast.LENGTH_LONG).show();}}
  private void addEvent(JSONObject e){events.put(e);saveProject();showScreen();}
- private void eventPicker(){String[] names={"Diálogo","Alterar fundo","Personagem (imagem única)","Personagem em 3 PNGs","Condição: se variável","Senão","Fim da condição","Definir variável","Escolha (2 opções)","Tocar música","Tocar efeito sonoro","Transição","Esperar","Ocultar personagem","Finalizar história"};new AlertDialog.Builder(this).setTitle("Adicionar bloco").setItems(names,(d,w)->{switch(w){case 0:addDialogue();break;case 1:addBackground();break;case 2:addSprite();break;case 3:addLayered();break;case 4:addIf();break;case 5:addSimple("else");break;case 6:addSimple("endif");break;case 7:addSet();break;case 8:addChoice();break;case 9:addAudio("music");break;case 10:addAudio("sound");break;case 11:addTransition();break;case 12:addPause();break;case 13:addHide();break;case 14:addSimple("end");break;}}).show();}
+ private void eventPicker(){
+  String[] names={"Diálogo","Alterar fundo","Personagem (PNG)","Personagem em 3 PNGs","Definir variável","Escolha do jogador","Tocar música","Tocar efeito sonoro","Parar música","Transição","Esperar","Ocultar personagem","Senão","Fim da condição","Finalizar história"};
+  new AlertDialog.Builder(this).setTitle("Adicionar ação").setItems(names,(d,w)->{
+   switch(w){
+    case 0:addDialogue();break;case 1:addBackground();break;case 2:addSprite();break;case 3:addLayered();break;
+    case 4:addSet();break;case 5:addChoice();break;case 6:addAudio("music");break;case 7:addAudio("sound");break;
+    case 8:addSimple("stopmusic");break;case 9:addTransition();break;case 10:addPause();break;case 11:addHide();break;
+    case 12:addSimple("else");break;case 13:addSimple("endif");break;case 14:addSimple("end");break;
+   }
+  }).show();
+ }
  private LinearLayout form(){LinearLayout l=column();pad(l,4);return l;}
  private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(TEXT);e.setHintTextColor(MUTED);e.setTextSize(14);e.setPadding(dp(12),dp(10),dp(12),dp(10));e.setBackground(shape(PANEL2,12,0xff39364f));LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(8);e.setLayoutParams(p);return e;}
  private void formDialog(String title,LinearLayout f,Runnable save){new AlertDialog.Builder(this).setTitle(title).setView(f).setNegativeButton("Cancelar",null).setPositiveButton("Adicionar",(d,w)->save.run()).show();}
@@ -157,7 +259,16 @@ public class MainActivity extends Activity {
    );
   });
  }
- private void addIf(){LinearLayout f=form();EditText v=field("Variável (ex.: encontrou_carta)"),x=field("Valor esperado (True, False ou texto entre aspas)");x.setText("True");f.addView(v);f.addView(x);formDialog("Condição • SE",f,()->{JSONObject e=new JSONObject();put(e,"type","if");put(e,"variable",v.getText().toString());put(e,"value",x.getText().toString());addEvent(e);});}
+ private void addIf(){
+  LinearLayout f=form();EditText variable=field("Variável (ex.: encontrou_carta)"),value=field("Valor esperado");
+  String[] ops={"==","!=",">","<",">=","<="};Spinner op=new Spinner(this);
+  ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,ops);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);op.setAdapter(adapter);
+  f.addView(variable);f.addView(text("Comparador",12,MUTED,true));f.addView(op);f.addView(value);
+  formDialog("Condição • SE",f,()->{
+   JSONObject e=new JSONObject();put(e,"type","if");put(e,"variable",variable.getText().toString());
+   put(e,"operator",ops[op.getSelectedItemPosition()]);put(e,"value",value.getText().toString());addEvent(e);
+  });
+ }
  private void addSet(){LinearLayout f=form();EditText v=field("Nome da variável"),x=field("Valor (True, False, número ou texto)");f.addView(v);f.addView(x);formDialog("Definir variável",f,()->{JSONObject e=new JSONObject();put(e,"type","set");put(e,"variable",v.getText().toString());put(e,"value",x.getText().toString());addEvent(e);});}
  private void addChoice(){LinearLayout f=form();EditText a=field("Opção A"),b=field("Opção B");f.addView(a);f.addView(b);formDialog("Escolha do jogador",f,()->{JSONObject e=new JSONObject();put(e,"type","choice");put(e,"a",a.getText().toString());put(e,"b",b.getText().toString());addEvent(e);});}
  private void addAudio(String type){assetDialog("Escolher áudio",file->{JSONObject e=new JSONObject();put(e,"type",type);put(e,"file",file);addEvent(e);});}
@@ -225,9 +336,9 @@ public class MainActivity extends Activity {
    choices.removeAllViews();choices.setVisibility(View.GONE);next.setVisibility(View.VISIBLE);
    while(cursor[0]<events.length()){
     JSONObject ev=events.optJSONObject(cursor[0]++);if(ev==null)continue;String type=ev.optString("type");
-    if(type.equals("background")){playfield.removeAllViews();playfield.setBackgroundColor(0xff28243a);characters[0]=new FrameLayout(this);playfield.addView(characters[0],new FrameLayout.LayoutParams(-1,-1));addImage(playfield,ev.optString("file"));playfield.bringChildToFront(characters[0]);}
-    else if(type.equals("sprite")){characters[0].removeAllViews();addImage(characters[0],ev.optString("file"));}
-    else if(type.equals("layered")){characters[0].removeAllViews();addImage(characters[0],ev.optString("body"));addImage(characters[0],ev.optString("eyes"));addImage(characters[0],ev.optString("mouth"));}
+    if(type.equals("background")){playfield.removeAllViews();playfield.setBackgroundColor(0xff28243a);characters[0]=new FrameLayout(this);playfield.addView(characters[0],new FrameLayout.LayoutParams(-1,-1));addImage(playfield,ev.optString("file"),floatValue(ev,"x",0.5f),floatValue(ev,"y",0.5f),floatValue(ev,"zoom",1),floatValue(ev,"rotation",0));playfield.bringChildToFront(characters[0]);}
+    else if(type.equals("sprite")){characters[0].removeAllViews();addImage(characters[0],ev.optString("file"),floatValue(ev,"x",0.5f),floatValue(ev,"y",0.62f),floatValue(ev,"zoom",0.9f),floatValue(ev,"rotation",0));}
+    else if(type.equals("layered")){characters[0].removeAllViews();float x=floatValue(ev,"x",0.5f),y=floatValue(ev,"y",0.62f),z=floatValue(ev,"zoom",0.9f),r=floatValue(ev,"rotation",0);addImage(characters[0],ev.optString("left"),x,y,z,r);addImage(characters[0],ev.optString("right"),x,y,z,r);addImage(characters[0],ev.optString("head"),x,y,z,r);}
     else if(type.equals("hide"))characters[0].removeAllViews();
     else if(type.equals("set"))vars.put(ev.optString("variable"),ev.optString("value"));
     else if(type.equals("if")){String actual=vars.get(ev.optString("variable"));String expected=ev.optString("value").replace("\\\"","");if(actual==null||!actual.equalsIgnoreCase(expected))cursor[0]=findConditionalBoundary(cursor[0],true);}
