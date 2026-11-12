@@ -87,49 +87,63 @@ public class MainActivity extends Activity {
   if(dialogue){LinearLayout box=column();box.setBackground(shape(0xee171624,12,0xff8172bd));pad(box,10);box.addView(text("PERSONAGEM",10,MINT,true));box.addView(text("A história começa aqui...",13,TEXT,false));FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM);p.setMargins(dp(8),0,dp(8),dp(8));stage.addView(box,p);}
  }
  
+ private int eventTrack(String type){
+  if(type.equals("background")||type.equals("transition"))return 0;
+  if(type.equals("sprite")||type.equals("layered")||type.equals("transform")||type.equals("hide"))return 1;
+  if(type.equals("say")||type.equals("choice"))return 2;
+  if(type.equals("music")||type.equals("sound")||type.equals("stopmusic"))return 3;
+  return 4;
+ }
  private void eventEditor(){
-  heading("Timeline da história","Cada bloco é um clipe. Toque para editar; mantenha pressionado para duplicar, mover ou excluir.");
+  heading("Timeline da história","Clipes separados por faixa, com ordem e edição visual simples.");
   LinearLayout actions=row();
   actions.addView(button("＋ BLOCO",()->eventPicker(),true),new LinearLayout.LayoutParams(0,dp(44),1));
   LinearLayout.LayoutParams playParams=new LinearLayout.LayoutParams(0,dp(44),1);playParams.leftMargin=dp(8);
   actions.addView(button("▶ PLAYTEST",()->{tab=3;showScreen();},false),playParams);
   content.addView(actions);space(12);
-  content.addView(text("TRILHA PRINCIPAL  •  ORDEM DE EXECUÇÃO",11,MUTED,true),lp(-1,26));
   if(events.length()==0){
    LinearLayout empty=column();empty.setGravity(Gravity.CENTER);empty.addView(text("＋",34,PURPLE,true));
    empty.addView(text("Timeline vazia",16,TEXT,true));
-   empty.addView(text("Adicione diálogo, fundo, personagem ou áudio.",12,MUTED,false));card(empty);return;
+   empty.addView(text("Adicione diálogo, cenário, personagem ou áudio.",12,MUTED,false));card(empty);return;
   }
-  HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);
-  LinearLayout clips=row();clips.setPadding(0,dp(4),0,dp(8));
-  for(int i=0;i<events.length();i++){
-   final int ix=i;JSONObject e=events.optJSONObject(i);if(e==null)continue;
-   String type=e.optString("type");
-   int color=(type.equals("say")||type.equals("choice"))?0xff4b3c70:
-    (type.equals("background")||type.equals("sprite")||type.equals("layered")||type.equals("transform"))?0xff244c50:
-    (type.equals("if")||type.equals("set"))?0xff57472a:0xff30364e;
-   LinearLayout clip=column();clip.setGravity(Gravity.CENTER_VERTICAL);pad(clip,10);
-   clip.setBackground(shape(color,12,0xff55506b));
-   clip.addView(text(String.format(Locale.ROOT,"%02d",i+1),10,MINT,true),lp(-1,18));
-   TextView title=text(eventLabel(e),11,TEXT,true);title.setMaxLines(2);clip.addView(title,lp(-1,38));
-   TextView detail=text(eventDetail(e),10,MUTED,false);detail.setMaxLines(1);clip.addView(detail,lp(-1,18));
-   LinearLayout.LayoutParams cp=lp(132,88);cp.rightMargin=dp(8);clips.addView(clip,cp);
-   clip.setOnClickListener(v->editEvent(ix));
-   clip.setOnLongClickListener(v->{showEventMenu(ix);return true;});
+  String[] tracks={"CENÁRIO","PERSONAGENS","DIÁLOGOS","ÁUDIO","LÓGICA"};
+  for(int track=0;track<tracks.length;track++){
+   final int lane=track;ArrayList<Integer> indexes=new ArrayList<>();
+   for(int i=0;i<events.length();i++){JSONObject e=events.optJSONObject(i);if(e!=null&&eventTrack(e.optString("type"))==track)indexes.add(i);}
+   LinearLayout head=row();head.addView(text(tracks[track],11,MUTED,true),new LinearLayout.LayoutParams(0,dp(26),1));
+   head.addView(text(indexes.size()+" clipes",10,MUTED,false));content.addView(head);
+   HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);
+   LinearLayout clips=row();clips.setGravity(Gravity.CENTER_VERTICAL);clips.setPadding(0,dp(3),0,dp(7));
+   if(indexes.isEmpty()){
+    TextView emptyLane=text("Faixa vazia",11,MUTED,false);emptyLane.setPadding(dp(12),dp(8),dp(12),dp(8));
+    clips.addView(emptyLane,lp(116,dp(52)));
+   }else{
+    for(int index:indexes){
+     final int ix=index;JSONObject e=events.optJSONObject(ix);String type=e.optString("type");
+     int color=lane==0?0xff244c50:lane==1?0xff2e4d67:lane==2?0xff4b3c70:lane==3?0xff5b452e:0xff3e4051;
+     LinearLayout clip=column();clip.setGravity(Gravity.CENTER_VERTICAL);pad(clip,8);clip.setBackground(shape(color,10,0xff55506b));
+     clip.addView(text(String.format(Locale.ROOT,"%02d",ix+1),10,MINT,true),lp(-1,16));
+     TextView label=text(eventLabel(e),10,TEXT,true);label.setMaxLines(2);clip.addView(label,lp(-1,32));
+     TextView detail=text(eventDetail(e),9,MUTED,false);detail.setMaxLines(1);clip.addView(detail,lp(-1,16));
+     LinearLayout.LayoutParams cp=lp(116,72);cp.rightMargin=dp(7);clips.addView(clip,cp);
+     clip.setOnClickListener(v->editEvent(ix));clip.setOnLongClickListener(v->{showEventMenu(ix);return true;});
+    }
+   }
+   scroll.addView(clips);content.addView(scroll,lp(-1,82));space(5);
   }
-  scroll.addView(clips);content.addView(scroll,lp(-1,108));space(8);
-  LinearLayout header=row();header.addView(text("BLOCOS",11,MUTED,true),new LinearLayout.LayoutParams(0,dp(28),1));
-  header.addView(text(events.length()+" clipes",10,MUTED,false));content.addView(header);
+  content.addView(text("Os números mostram a ordem real de execução do script. Use o menu de cada clipe para mover, duplicar ou excluir.",10,MUTED,false));
+  space(8);
+  content.addView(text("ORDEM DO ROTEIRO",11,MUTED,true),lp(-1,26));
   for(int i=0;i<events.length();i++){
    JSONObject e=events.optJSONObject(i);if(e==null)continue;final int ix=i;
-   LinearLayout line=row();line.setBackground(shape(PANEL,12,0xff302d43));pad(line,9);
-   line.addView(text(String.format(Locale.ROOT,"%02d",i+1),11,MINT,true),lp(28,38));
-   LinearLayout info=column();info.addView(text(eventLabel(e),12,TEXT,true),lp(-1,22));
-   TextView detail=text(eventDetail(e),11,MUTED,false);detail.setMaxLines(1);info.addView(detail,lp(-1,20));
+   LinearLayout line=row();line.setBackground(shape(PANEL,12,0xff302d43));pad(line,8);
+   line.addView(text(String.format(Locale.ROOT,"%02d",i+1),11,MINT,true),lp(28,36));
+   LinearLayout info=column();info.addView(text(eventLabel(e),11,TEXT,true),lp(-1,20));
+   TextView detail=text(eventDetail(e),10,MUTED,false);detail.setMaxLines(1);info.addView(detail,lp(-1,18));
    line.addView(info,new LinearLayout.LayoutParams(0,-2,1));
-   TextView edit=text("›",24,PURPLE,true);edit.setGravity(Gravity.CENTER);line.addView(edit,lp(28,38));
+   TextView edit=text("⋮",20,PURPLE,true);edit.setGravity(Gravity.CENTER);line.addView(edit,lp(28,36));
    line.setOnClickListener(v->editEvent(ix));line.setOnLongClickListener(v->{showEventMenu(ix);return true;});
-   LinearLayout.LayoutParams rowParams=lp(-1,-2);rowParams.bottomMargin=dp(6);content.addView(line,rowParams);
+   LinearLayout.LayoutParams rp=lp(-1,-2);rp.bottomMargin=dp(5);content.addView(line,rp);
   }
  }
  private void showEventMenu(int index){
