@@ -17,9 +17,9 @@ import java.util.zip.*;
 public class MainActivity extends Activity {
  private final int BG=0xff101018,PANEL=0xff1b1a29,PANEL2=0xff242236,PURPLE=0xffa995ff,MINT=0xff74dfc2,TEXT=0xfff4f1ff,MUTED=0xffa5a1b7;
  private LinearLayout root,content,toolbar,bottom; private FrameLayout stage;
- private JSONArray events=new JSONArray(); private ArrayList<String> assets=new ArrayList<>();
+ private JSONArray events=new JSONArray(); private ArrayList<String> assets=new ArrayList<>(); private JSONObject guiSettings=new JSONObject(); private boolean includeRpaConfig=true,includeRpycHelper=true;
  private String projectName="Minha Visual Novel",projectId="minha_visual_novel"; private int tab=0,subtab=0;
- private final String[] tabs={"Studio","Assets","Preview","Exportar"}; private final String[] subs={"Cena","Eventos","Personagens"};
+ private final String[] tabs={"Studio","Assets","Aparência","Preview","Exportar"}; private final String[] subs={"Cena","Eventos","Personagens"};
  private static final int PICK_ASSET=41,EXPORT_ZIP=42;
 
  @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);loadProject();buildShell();showScreen();}
@@ -31,10 +31,10 @@ public class MainActivity extends Activity {
  private void pad(View v,int a){v.setPadding(dp(a),dp(a),dp(a),dp(a));}
  private LinearLayout.LayoutParams lp(int w,int h){return new LinearLayout.LayoutParams(w<0?w:dp(w),h<0?h:dp(h));}
  private TextView button(String s,Runnable r,boolean primary){TextView b=text(s,14,primary?BG:TEXT,true);b.setGravity(Gravity.CENTER);pad(b,12);b.setBackground(shape(primary?PURPLE:PANEL2,14,primary?0:0xff39364f));b.setOnClickListener(v->r.run());return b;}
- private void loadProject(){try{events=new JSONArray(getPreferences(0).getString("events","[]"));}catch(Exception e){events=new JSONArray();}projectName=getPreferences(0).getString("name","Minha Visual Novel");try{JSONArray a=new JSONArray(getPreferences(0).getString("assets","[]"));for(int i=0;i<a.length();i++)assets.add(a.getString(i));}catch(Exception ignored){}}
- private void saveProject(){getPreferences(0).edit().putString("events",events.toString()).putString("name",projectName).putString("assets",new JSONArray(assets).toString()).apply();}
- private void buildShell(){root=column();root.setBackgroundColor(BG);setContentView(root);toolbar=row();pad(toolbar,16);root.addView(toolbar,lp(-1,60));ScrollView sc=new ScrollView(this);sc.setFillViewport(true);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));content=column();pad(content,16);sc.addView(content);bottom=row();bottom.setBackgroundColor(0xff171624);bottom.setPadding(dp(4),dp(7),dp(4),dp(7));root.addView(bottom,lp(-1,66));for(int i=0;i<tabs.length;i++){final int k=i;LinearLayout item=column();item.setGravity(Gravity.CENTER);TextView ic=text(new String[]{"▦","▧","▷","⇧"}[i],19,i==tab?PURPLE:MUTED,true);ic.setGravity(Gravity.CENTER);TextView la=text(tabs[i],10,i==tab?PURPLE:MUTED,true);la.setGravity(Gravity.CENTER);item.addView(ic);item.addView(la);item.setOnClickListener(v->{tab=k;showScreen();});bottom.addView(item,new LinearLayout.LayoutParams(0,-1,1));}}
- private void showScreen(){content.removeAllViews();toolbar.removeAllViews();TextView brand=text("✦  REN'PY STUDIO",15,TEXT,true);toolbar.addView(brand,new LinearLayout.LayoutParams(0,dp(40),1));TextView proj=text(projectName+"  ▾",12,MUTED,false);proj.setOnClickListener(v->renameProject());toolbar.addView(proj);if(tab==0)studio();else if(tab==1)assetScreen();else if(tab==2)previewScreen();else exportScreen();for(int i=0;i<bottom.getChildCount();i++){LinearLayout it=(LinearLayout)bottom.getChildAt(i);it.getChildAt(0).setAlpha(i==tab?1f:.5f);it.getChildAt(1).setAlpha(i==tab?1f:.5f);}}
+ private void loadProject(){try{events=new JSONArray(getPreferences(0).getString("events","[]"));}catch(Exception e){events=new JSONArray();}projectName=getPreferences(0).getString("name","Minha Visual Novel");try{JSONArray a=new JSONArray(getPreferences(0).getString("assets","[]"));for(int i=0;i<a.length();i++)assets.add(a.getString(i));}catch(Exception ignored){}try{guiSettings=new JSONObject(getPreferences(0).getString("gui","{}"));}catch(Exception ignored){guiSettings=new JSONObject();}includeRpaConfig=getPreferences(0).getBoolean("include_rpa",true);includeRpycHelper=getPreferences(0).getBoolean("include_rpyc",true);}
+ private void saveProject(){getPreferences(0).edit().putString("events",events.toString()).putString("name",projectName).putString("assets",new JSONArray(assets).toString()).putString("gui",guiSettings.toString()).putBoolean("include_rpa",includeRpaConfig).putBoolean("include_rpyc",includeRpycHelper).apply();}
+ private void buildShell(){root=column();root.setBackgroundColor(BG);setContentView(root);toolbar=row();pad(toolbar,16);root.addView(toolbar,lp(-1,60));ScrollView sc=new ScrollView(this);sc.setFillViewport(true);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));content=column();pad(content,16);sc.addView(content);bottom=row();bottom.setBackgroundColor(0xff171624);bottom.setPadding(dp(4),dp(7),dp(4),dp(7));root.addView(bottom,lp(-1,66));for(int i=0;i<tabs.length;i++){final int k=i;LinearLayout item=column();item.setGravity(Gravity.CENTER);TextView ic=text(new String[]{"▦","▧","⚙","▷","⇧"}[i],19,i==tab?PURPLE:MUTED,true);ic.setGravity(Gravity.CENTER);TextView la=text(tabs[i],10,i==tab?PURPLE:MUTED,true);la.setGravity(Gravity.CENTER);item.addView(ic);item.addView(la);item.setOnClickListener(v->{tab=k;showScreen();});bottom.addView(item,new LinearLayout.LayoutParams(0,-1,1));}}
+ private void showScreen(){content.removeAllViews();toolbar.removeAllViews();TextView brand=text("✦  REN'PY STUDIO",15,TEXT,true);toolbar.addView(brand,new LinearLayout.LayoutParams(0,dp(40),1));TextView proj=text(projectName+"  ▾",12,MUTED,false);proj.setOnClickListener(v->renameProject());toolbar.addView(proj);if(tab==0)studio();else if(tab==1)assetScreen();else if(tab==2)appearanceScreen();else if(tab==3)previewScreen();else exportScreen();for(int i=0;i<bottom.getChildCount();i++){LinearLayout it=(LinearLayout)bottom.getChildAt(i);it.getChildAt(0).setAlpha(i==tab?1f:.5f);it.getChildAt(1).setAlpha(i==tab?1f:.5f);}}
  private void heading(String h,String s){content.addView(text(h,25,TEXT,true),lp(-1,38));content.addView(text(s,13,MUTED,false),lp(-1,-2));space(14);}
  private void space(int h){View v=new View(this);content.addView(v,lp(1,h));}
  private void spaceIn(LinearLayout l,int h){View v=new View(this);l.addView(v,lp(1,h));}
@@ -351,7 +351,82 @@ public class MainActivity extends Activity {
   };
   next.setOnClickListener(v->advance[0].run());dlg.show();if(dlg.getWindow()!=null)dlg.getWindow().setLayout(-1,-1);advance[0].run();
  }
- private void exportScreen(){heading("Exportar para Ren'Py","Gere um ZIP para extrair dentro da pasta game/ do projeto Ren'Py.");LinearLayout info=column();info.addView(text("PACOTE DE EXPORTAÇÃO",11,MINT,true));spaceIn(info,8);info.addView(text("• script.rpy compilado em C++\n• images/ com fundos e sprites\n• audio/ com músicas e efeitos\n• README com instruções",14,TEXT,false));card(info);content.addView(button("⇩  Gerar ZIP do projeto",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.putExtra(Intent.EXTRA_TITLE,projectId+"_renpy.zip");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,EXPORT_ZIP);},true),lp(-1,54));space(14);content.addView(text("O ZIP contém scripts e assets. Extraia na pasta game/ de um projeto Ren'Py existente. O APK não inclui o runtime Ren'Py.",12,MUTED,false));}
+ private void appearanceScreen(){
+  heading("Aparência do jogo","Personalize a tela de título, botões, caixa de diálogo, cores e fontes.");
+  content.addView(button("Imagem de fundo da tela de título",()->assetDialogMatching("Fundo da tela de título",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("title_bg",v)),true),lp(-1,46));space(7);
+  content.addView(button("Imagem da caixa de diálogo",()->assetDialogMatching("Fundo da caixa de diálogo",new String[]{".png",".jpg",".jpeg",".webp"},v->setGui("dialogue_bg",v)),false),lp(-1,46));space(7);
+  content.addView(button("Fonte personalizada (.ttf / .otf)",()->assetDialogMatching("Escolher fonte",new String[]{".ttf",".otf"},v->setGui("font",v)),false),lp(-1,46));space(12);
+  LinearLayout current=column();current.addView(text("RECURSOS SELECIONADOS",11,MINT,true));
+  current.addView(text("Tela de título: "+guiSettings.optString("title_bg","padrão"),12,TEXT,false));
+  current.addView(text("Caixa: "+guiSettings.optString("dialogue_bg","padrão"),12,TEXT,false));
+  current.addView(text("Fonte: "+guiSettings.optString("font","padrão"),12,TEXT,false));card(current);
+  content.addView(button("Cor do texto",()->editGuiColor("text_color","Cor do texto","#FFFFFF"),false),lp(-1,42));space(5);
+  content.addView(button("Cor de destaque",()->editGuiColor("accent_color","Cor de destaque","#C8A2FF"),false),lp(-1,42));space(5);
+  content.addView(button("Cor normal dos botões",()->editGuiColor("idle_color","Cor normal dos botões","#8A8299"),false),lp(-1,42));space(5);
+  content.addView(button("Cor ao tocar nos botões",()->editGuiColor("hover_color","Cor ao tocar nos botões","#FFFFFF"),false),lp(-1,42));space(5);
+  content.addView(button("Tamanho do texto",()->editGuiNumber("text_size","Tamanho do texto",16,48,30),false),lp(-1,42));space(5);
+  content.addView(button("Altura da caixa de diálogo",()->editGuiNumber("textbox_height","Altura da caixa",120,420,230),false),lp(-1,42));space(10);
+  content.addView(text("As imagens e fontes selecionadas serão copiadas para o ZIP. O Ren'Py usa os arquivos exportados por caminhos relativos à pasta game/.",11,MUTED,false));
+ }
+ private void setGui(String key,String value){put(guiSettings,key,value);saveProject();showScreen();}
+ private void editGuiColor(String key,String title,String fallback){
+  LinearLayout f=form();EditText e=field("Cor hexadecimal, ex.: #AABBCC");e.setText(guiSettings.optString(key,fallback));f.addView(e);
+  editFormDialog(title,f,()->{String v=e.getText().toString().trim();if(!v.matches("#[0-9a-fA-F]{6}")){toast("Informe uma cor no formato #RRGGBB.");return;}setGui(key,v);});
+ }
+ private void editGuiNumber(String key,String title,int min,int max,int fallback){
+  LinearLayout f=form();int value=guiSettings.optInt(key,fallback);SeekBar seek=addSlider(f,title,max-min,Math.max(0,Math.min(max-min,value-min)));
+  editFormDialog(title,f,()->setGui(key,Integer.toString(seek.getProgress()+min)));
+ }
+ private String pyQuote(String value){
+  return "\"" + value.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","") + "\"";
+ }
+ private String buildGuiScript(){
+  StringBuilder out=new StringBuilder("# Generated GUI settings.\ninit 999 python:\n");
+  String title=guiSettings.optString("title_bg","");if(!title.isEmpty())out.append("    gui.main_menu_background = ").append(pyQuote("images/"+title)).append("\n");
+  String box=guiSettings.optString("dialogue_bg","");if(!box.isEmpty())out.append("    gui.textbox = ").append(pyQuote("images/"+box)).append("\n");
+  String font=guiSettings.optString("font","");if(!font.isEmpty()){
+   out.append("    gui.text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+   out.append("    gui.interface_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+   out.append("    gui.button_text_font = ").append(pyQuote("fonts/"+font)).append("\n");
+  }
+  out.append("    gui.text_color = ").append(pyQuote(guiSettings.optString("text_color","#FFFFFF"))).append("\n");
+  out.append("    gui.accent_color = ").append(pyQuote(guiSettings.optString("accent_color","#C8A2FF"))).append("\n");
+  out.append("    gui.idle_color = ").append(pyQuote(guiSettings.optString("idle_color","#8A8299"))).append("\n");
+  out.append("    gui.hover_color = ").append(pyQuote(guiSettings.optString("hover_color","#FFFFFF"))).append("\n");
+  out.append("    gui.text_size = ").append(guiSettings.optInt("text_size",30)).append("\n");
+  out.append("    gui.name_text_size = ").append(guiSettings.optInt("text_size",30)+6).append("\n");
+  out.append("    gui.textbox_height = ").append(guiSettings.optInt("textbox_height",230)).append("\n");
+  return out.toString();
+ }
+ private String buildRpaScript(){
+  return "# Ren'Py archive configuration. Use Build Distributions in the Ren'Py Launcher to create .rpa files.\n"+
+   "init python:\n"+
+   "    build.archive(\"studio_images\", \"all\")\n"+
+   "    build.classify(\"game/images/**\", \"studio_images\")\n"+
+   "    build.archive(\"studio_audio\", \"all\")\n"+
+   "    build.classify(\"game/audio/**\", \"studio_audio\")\n"+
+   "    build.archive(\"studio_fonts\", \"all\")\n"+
+   "    build.classify(\"game/fonts/**\", \"studio_fonts\")\n";
+ }
+ private String buildRpycShell(){
+  return "#!/bin/sh\nset -eu\nif [ \"$#\" -ne 1 ]; then echo \"Usage: RENPY_SDK=/path/to/renpy-sdk $0 /path/to/project\"; exit 2; fi\n"+
+   "if [ -z \"$RENPY_SDK\" ]; then echo \"Set RENPY_SDK to your Ren'Py SDK directory\"; exit 2; fi\n"+
+   "\"$RENPY_SDK/renpy.sh\" \"$1\" compile\n";
+ }
+ private String buildRpycBat(){
+  return "@echo off\nif \"%~1\"==\"\" (echo Usage: set RENPY_SDK=C:\\RenPy\\sdk then COMPILE_RPYC.bat C:\\MyGame & exit /b 2)\n"+
+   "if \"%RENPY_SDK%\"==\"\" (echo Set RENPY_SDK to your Ren'Py SDK folder. & exit /b 2)\n"+
+   "\"%RENPY_SDK%\\lib\\py3-windows-x86_64\\python.exe\" \"%RENPY_SDK%\\renpy.py\" \"%~1\" compile\n";
+ }
+ private void exportScreen(){
+  heading("Exportar para Ren'Py","Gere um projeto pronto para extrair na pasta game/.");
+  LinearLayout info=column();info.addView(text("PACOTE DE EXPORTAÇÃO",11,MINT,true));spaceIn(info,8);
+  info.addView(text("• script.rpy gerado em C++\n• imagens, áudio e fontes personalizadas\n• configuração de GUI/tela de título\n• configuração opcional de arquivos .rpa\n• scripts opcionais para compilar .rpy em .rpyc",14,TEXT,false));card(info);
+  CheckBox rpyc=new CheckBox(this);rpyc.setText("Incluir scripts para compilar .rpy → .rpyc com o SDK Ren'Py");rpyc.setTextColor(TEXT);rpyc.setChecked(includeRpycHelper);rpyc.setOnCheckedChangeListener((b,v)->{includeRpycHelper=v;saveProject();});content.addView(rpyc);
+  CheckBox rpa=new CheckBox(this);rpa.setText("Incluir configuração para gerar arquivos .rpa");rpa.setTextColor(TEXT);rpa.setChecked(includeRpaConfig);rpa.setOnCheckedChangeListener((b,v)->{includeRpaConfig=v;saveProject();});content.addView(rpa);
+  content.addView(text("O app inclui a configuração e os comandos oficiais no pacote. A compilação .rpyc e a criação real dos .rpa são executadas pelo SDK/Launcher do Ren'Py.",11,MUTED,false));space(12);
+  content.addView(button("⇩  Gerar ZIP do projeto",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.putExtra(Intent.EXTRA_TITLE,projectId+"_renpy.zip");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,EXPORT_ZIP);},true),lp(-1,54));
+ }
  private void exportZip(Uri target){
   try{
    StringBuilder input=new StringBuilder();
